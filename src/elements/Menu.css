@@ -1,0 +1,159 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.desktop {
+    display: none;
+}
+
+#menu {
+    margin-top: 0px;
+}
+
+#menu-checkbox-label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 1;
+    padding: 10px;
+    cursor: pointer;
+}
+
+#menu-checkbox-label h1 {
+    flex-grow: 1;
+    color: white;
+    text-align: center;
+    padding: 0;
+    margin: 0;
+    font-family: Arial;
+    -webkit-text-stroke: 1px black;
+}
+
+#menu-burger div {
+    width: 30px;
+    height: 5px;
+    margin-top: 5px;
+    background: white;
+    border: 1px solid black;
+    transition: background 400ms ease-in-out, border 400ms ease-in-out;
+}
+
+#menu-burger div:first-child {
+    margin-top: 0;
+}
+
+nav {
+    max-height: 0;
+    overflow: hidden;
+    /* background: rgb(13, 166, 218); */
+    transition: max-height 400ms ease-in-out;
+}
+
+nav ul {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+nav li {
+    text-align: center;
+    padding: 10px 0px;
+    margin: 0;
+    width: 100%;
+    border-bottom: 1px solid black;
+    background: rgb(13, 166, 218);
+    cursor: pointer;
+}
+
+nav h2 {
+    font-size: 1.2em;
+    text-align: center;
+    padding: 0;
+    margin: 0;
+    color: white;
+}
+
+nav a {
+    text-decoration: none;
+    color: inherit;
+}
+
+nav a:hover {
+    text-decoration: none;
+}
+
+#menu-checkbox {
+    visibility: hidden;
+    height: 0;
+    margin: 0;
+}
+
+#menu-checkbox:checked ~ nav {
+    max-height: 100vh;
+    transition: max-height 400ms ease-in-out;
+}
+
+#menu-checkbox:checked ~ #menu-checkbox-label #menu-burger div {
+    background: black;
+    border: 1px solid white;
+    transition: background 400ms ease-in-out, border 400ms ease-in-out;
+}
+
+main {
+    margin-left: 10px;
+}
+
+a {
+    color: white !important;
+}
+
+@media screen and (min-width: 480px) {
+    #menu-burger {
+        display: none;
+    }
+
+    #menu-checkbox-label {
+        background: none;
+    }
+
+    header {
+        color: black;
+    }
+
+    nav {
+        height: auto;
+        max-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: none;
+    }
+
+    nav ul {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 1ch;
+    }
+    
+    nav li {
+        width: auto;
+        padding: 0;
+        color: white;
+        background: none;
+        border: none;
+    }
+
+    nav li:hover {
+        transition: none;
+        background: rgb(13, 166, 218);
+    }
+
+    nav.desktop {
+        height: auto;
+        max-height: 100vh;
+    }
+}

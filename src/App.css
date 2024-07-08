@@ -1,0 +1,402 @@
+#root {
+  padding: 10px;
+}
+
+.splash-screen {
+  text-align: center;
+}
+
+.profile-image {
+  display: inline-block;
+  text-align: center;
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  z-index: 9999;
+}
+
+.profile-image img {
+  width: 100px;
+}
+
+.streamcrab-logo {
+  width: 300px;
+}
+
+.command-config-table td {
+  vertical-align: top;
+}
+
+body {
+  margin: 10px;
+  background-color: black;
+  color: white;
+}
+
+a {
+  color: white;
+  text-decoration: none;
+}
+
+a:hover {
+  color: black;
+  background-color: white;
+}
+
+#login-button {
+  padding: 0.5em;
+}
+
+strong {
+  display: inline;
+}
+
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+body {
+  background-color: black !important;
+  color: white !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+ul {
+  list-style-type: none;
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+a {
+  color: white;
+  text-decoration: none;
+}
+
+.splash-screen {
+  display: inline-block;
+  text-align: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.item {
+  max-width: 800px;
+  box-sizing: border-box;
+  margin: 10px;
+  background-color: black;
+  color: white;
+}
+
+.item-inner {
+  display: table-row;
+}
+
+.item-inner > div {
+  display: table-cell;
+  box-sizing: border-box;
+}
+
+@media screen and (min-width: 480px) {
+  .item-image {
+    width: 200px;
+    vertical-align: middle;
+  }
+
+  .battler {
+    width: 80%;
+    margin: auto;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .item-details {
+    padding: 10px;
+  }
+
+  .item-image {
+    display: none !important;
+  }
+
+  .item-header {
+    text-align: center;
+  }
+
+  .item-description {
+    text-align: center;
+    padding: 5px 0px 5px 0px;
+  }
+
+  h1, h2, h3 {
+    text-align: center;
+  }
+
+  .battler-section {
+    margin-left: 10px;
+  }
+
+  button {
+    width: 200px;
+    height: 50px;
+  }
+}
+
+.item-count {
+  width: 20px;
+  color: white;
+  font-weight: bolder;
+  vertical-align: middle;
+}
+
+.item-use {
+  overflow-wrap: normal;
+}
+
+.item-stat {
+  margin: 5px;
+  width: 75px;
+  height: 25px;
+  line-height: 25px;
+  text-align: center;
+  color: black;
+  border: 1px solid black;
+  background-color: white;
+}
+
+.item-stat-highlight {
+  margin: 5px;
+  width: 75px;
+  height: 25px;
+  line-height: 25px;
+  text-align: center;
+  color: white;
+  background-color: greenyellow;
+}
+
+.item-name {
+  font-size: larger;
+  font-weight: bolder;
+}
+
+.item-type {
+  margin-left: 5px;
+  font-size: smaller;
+  font-style: italic;
+}
+
+.item-rarity > span {
+  font-size: x-large;
+}
+
+.action-trigger {
+  color: white;
+  padding: 5px;
+  border-radius: 20px;
+}
+
+.action-ability {
+  color: white;
+  padding: 5px;
+  border-radius: 20px;
+}
+
+.selected {
+  background-color: blue;
+  color: white;
+}
+
+.whitelist-entry {
+  display: table;
+  margin-left: 5px;
+}
+
+.whitelist-entry img {
+  width: 50px;
+}
+
+.whitelist-entry div {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.whitelist-entry div {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.media-pool-div li:last-child {
+  background-color: gray;
+}
+
+.media-pool-div ul {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  flex: 1;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.media-pool-div li, .new-media-form {
+  display: grid;
+  grid-template-columns: auto auto;
+  padding: 15px;
+  border-radius: 15px;
+  width: 100%;
+  background-color: rgb(0, 89, 255);
+  color: white;
+}
+
+.button-bank {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  grid-column-start: 1;
+  grid-column-end: 3;
+}
+
+.button-bank button {
+  font-size: 1.2rem;
+  border-radius: 15px;
+  color: white;
+  align-self: center;
+}
+
+button.destructive {
+  background-color: red;
+}
+
+button.primary {
+  background-color: green;
+}
+
+.random-checkbox {
+  grid-column-start: 1;
+  grid-column-end: 3;
+}
+
+.video-preview {
+  grid-column-start: 1;
+  grid-column-end: 3;
+  justify-self: center;
+}
+
+.video-preview img {
+  object-fit: contain;
+  width: 300px;
+  height: 300px;
+}
+
+button {
+  font-size: 1.2rem;
+  border-radius: 15px !important;
+  background: gray;
+  color: white;
+  align-self: center;
+}
+
+@media screen and (min-width: 480px) {
+  .media-pool-div ul {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+  }
+
+  .media-pool-div li, .new-media-form {
+    flex-basis: 20%;
+    display: grid;
+    grid-template-columns: auto auto;
+    padding: 15px;
+    border-radius: 15px;
+    background-color: rgb(0, 89, 255);
+    color: white;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  table {
+    width: 100%;
+    margin: 0;
+  }
+
+  table.dynamic-alerts-table tbody {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 10px;
+  }
+
+  table.dynamic-alerts-table tr {
+    display: flex;
+    flex: 1;
+    background-color: rgb(0, 89, 255);
+    color: white;
+    border-radius: 15px;
+    padding: 15px;
+  }
+
+  table.dynamic-alerts-table td {
+    flex-basis: 100%;
+  }
+
+  table.alert-config-table input {
+    width: 100%;
+  }
+
+  table.command-config-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  table.command-config-table thead {
+    display: none;
+  }
+
+  table.command-config-table tr {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    background-color: rgb(0, 89, 255);
+    color: white;
+    border-radius: 15px;
+    padding: 15px;
+    width: 100%;
+  }
+}
