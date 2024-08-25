@@ -1,7 +1,8 @@
 const { StaticAuthProvider } = require('@twurple/auth');
 const { ChatClient } = require('@twurple/chat');
 const { PubSubClient } = require('@twurple/pubsub');
-
+const { ApiClient } = require('@twurple/api');
+const { EventSubWsListener } = require('@twurple/eventsub-ws');
 const EventQueue = require('./components/base/eventQueue');
 
 const readline = require('readline');
@@ -17,7 +18,7 @@ const versionNumber = "3.0b";
  * INDEXES
  */
 
-let client, pubSubClient;
+let client, pubSubClient, apiClient, eventListener;
 let listeners = [];
 let cooldowns = {};
 let units = {
@@ -82,7 +83,7 @@ const performCustomCommand = (command, {type, coolDown, target}, botContext) => 
 // Define configuration options for chat bot
 const startBot = async (botConfig) => {
     try {
-        let {accessToken, clientId, twitchChannel, devMode} = botConfig;
+        let {accessToken, clientId, twitchChannel, devMode, broadcasterId} = botConfig;
         let botContext = {};
 
         let plugins = [deathCounterPlugin, requestPlugin, cameraObscura, modTools];
@@ -213,16 +214,34 @@ const startBot = async (botConfig) => {
             }
         }
 
+        const onFollow = async (followEvent) => {
+            try {
+                // Run through redemption plugin hooks
+                for (let plugin of plugins) {
+                    if (plugin.followHook) {
+                        plugin.followHook(followEvent, botContext);
+                    }
+                }
+            } catch (error) {
+                console.error("FOLLOW FAILURE: " + error);
+            }
+        }
+
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
             terminal: true
         });
 
-        const authProvider = new StaticAuthProvider(clientId, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "channel_subscriptions"], "user");
+        const authProvider = new StaticAuthProvider(clientId, accessToken, ["chat:read", "chat:edit", "channel:read:redemptions", "channel:read:subscriptions", "bits:read", "moderator:read:followers", "channel_subscriptions"], "user");
+        apiClient = new ApiClient({authProvider});
+
         client = new ChatClient({authProvider, channels: [twitchChannel]});
-        pubSubClient = new PubSubClient();
-        const userId = await pubSubClient.registerUserListener(authProvider);
+
+        pubSubClient = new PubSubClient({authProvider});
+        
+        apiClient.eventSub.deleteAllSubscriptions();
+        eventListener = new EventSubWsListener({ apiClient });
         
         rl.on('line', onConsoleCommand);
 
@@ -232,16 +251,21 @@ const startBot = async (botConfig) => {
         });
         client.onConnect(onConnectedHandler);
         client.onRaid((channel, username, {viewerCount}) => {onRaid(channel, username, viewerCount)});
-        let subListener = await pubSubClient.onSubscription(userId, onSubscription);
-        let cheerListener = await pubSubClient.onBits(userId, onBits);
-        let redemptionListener = await pubSubClient.onRedemption(userId, onRedemption);
+        
+        let subListener = await pubSubClient.onSubscription(broadcasterId, onSubscription);
+        let cheerListener = await pubSubClient.onBits(broadcasterId, onBits);
+        let redemptionListener = await pubSubClient.onRedemption(broadcasterId, onRedemption);
+
+        eventListener.onChannelFollow(broadcasterId, broadcasterId, onFollow);
 
         listeners = [subListener, cheerListener, redemptionListener];
 
         // Connect to twitch chat and pubsub
-        client.connect();
+        await client.connect();
+        await eventListener.start();
     } catch (error) {
         console.error(`* Failed to start bot: ${error}`);
+        throw error;
     }
 };
 

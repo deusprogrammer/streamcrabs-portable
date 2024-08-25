@@ -182,6 +182,8 @@ exports.init = async (botContext) => {}
 exports.followHook = async ({userName}, botContext) => {
     const {enabled, messageTemplate} = botContext.botConfig.alertConfigs.followAlert;
 
+    console.log("FOLLOW EVENT: " + userName);
+
     let alertMessage = `${userName} just followed!`;
     if (messageTemplate) {
         alertMessage = messageTemplate.replace("${username}", userName);

@@ -19,19 +19,12 @@ const MEDIA_DIRECTORY = path.join(HOME, "media");
 const CONFIG_FILE = path.join(HOME, "config.json");
 const MIGRATION_FILE = path.join(HOME, "migration.json");
 const USER_DATA_FILE = path.join(HOME, "config.json");
-const REACT_APP_LOCATION = `file://${path.join(__dirname, '../build/index.html')}`
 const DEFAULT_FILE_SERVER_PORT = "8080";
 const ENV = process.env.RUNTIME_ENV || "prod";
 
+console.log("ENV:         " + ENV);
 console.log("HOME:        " + HOME);
 console.log("CONFIG FILE: " + CONFIG_FILE);
-
-let isDev = false;
-try {
-    isDev = require('electron-is-dev');
-} catch (e) {
-    console.log("Running in production mode using react app at: " + REACT_APP_LOCATION);
-}
 
 if (!fs.existsSync(HOME)) {
     console.log("HOME NOT FOUND");
@@ -64,6 +57,8 @@ if (!fs.existsSync(CONFIG_FILE)) {
         "profileImage": "",
         "accessToken": "",
         "refreshToken": "",
+        "clientId": "z9sxe9lmchklcfoqpcaoe1fo8a660e",
+        "clientSecret": "ebtdjo3gx50d5qyk331mn6rrzh5wlx",
    }));
 }
 
@@ -122,7 +117,7 @@ const createWindow = async () => {
         const url = require('url').format({
             protocol: 'file',
             slashes: true,
-            pathname: require('path').join(__dirname, 'build/index.html')
+            pathname: require('path').join(__dirname, '../build/index.html')
           })
           win.loadURL(url)
     } else {
@@ -145,11 +140,6 @@ const createWindow = async () => {
             console.error('Failed to register protocol');
         }
     });
-
-    // Open the DevTools.
-    if (isDev) {
-        win.webContents.openDevTools({ mode: 'detach' });
-    }
 };
 
 // This method will be called when Electron has finished
@@ -200,7 +190,7 @@ const twitchRefresh = async () => {
 const twitchLogin = async () => {
     try {
         let token = await twitchOauth.getAccessToken({
-            scope: 'chat:read chat:edit channel:read:redemptions channel:read:subscriptions bits:read channel:manage:redemptions'
+            scope: 'chat:read chat:edit channel:read:redemptions channel:read:subscriptions bits:read channel:manage:redemptions moderator:read:followers'
         });
         let {twitchChannel, profileImage, id} = await getTwitchUser(null, token.access_token);
         config.accessToken = token.access_token;
