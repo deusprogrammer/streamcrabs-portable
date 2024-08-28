@@ -383,6 +383,10 @@ ipcMain.handle('getBotConfig', () => {
     return config;
 });
 
+ipcMain.handle('storeBotConfig', (botConfig) => {
+    config = botConfig;
+    fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));});
+
 ipcMain.handle('getBotRunning', () => {
     return botRunning;
 });

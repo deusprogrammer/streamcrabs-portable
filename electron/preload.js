@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld(
                 "updateUserData",
                 "updateAlerts",
                 "getBotConfig",
+                "storeBotConfig",
                 "updateCommands",
                 "saveCommand",
                 "removeCommand",

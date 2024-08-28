@@ -8,6 +8,10 @@ export const getBotConfig = async () => {
     return await window.api.send("getBotConfig");
 }
 
+export const storeBotConfig = async (botConfig) => {
+    return await window.api.send("storeBotConfig", botConfig);
+}
+
 export const updateAudioPool = async (mediaPool) => {
     return await window.api.send("updateAudioPool", mediaPool);
 }
