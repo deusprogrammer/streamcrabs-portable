@@ -4,6 +4,7 @@ const { PubSubClient } = require('@twurple/pubsub');
 const { ApiClient } = require('@twurple/api');
 const { EventSubWsListener } = require('@twurple/eventsub-ws');
 const EventQueue = require('./components/base/eventQueue');
+const ollamaJs = require('ollama');
 
 const readline = require('readline');
 
@@ -80,14 +81,54 @@ const performCustomCommand = (command, {type, coolDown, target}, botContext) => 
     }
 }
 
+class OllamaClient {
+    constructor(aiSettings) {
+        this.aiSettings = aiSettings;
+        this.messages = [];
+        this.client  = new ollamaJs.Ollama({ host: aiSettings.llmUrl });        
+    }
+
+    setup = async (setupPrompt) => {
+        this.messages.push({
+            role: "system",
+            content: setupPrompt
+        });
+        await this.client.chat({
+            stream: false,
+            model: this.aiSettings.llmModel,
+            messages: this.messages
+        });
+    }
+
+    send = async (username, message) => {
+        this.messages.push({
+            role: "user",
+            content: `${username}: ${message}`
+        });
+        let response = await this.client.chat({
+            stream: false,
+            model: this.aiSettings.llmModel,
+            messages: this.messages
+        });
+        this.messages.push(response.message);
+        return response.message.content;
+    }
+}
+
 // Define configuration options for chat bot
 const startBot = async (botConfig, selectedBotUser) => {
     try {
         let {accessToken, clientId, twitchChannel, botUsers, devMode, broadcasterId} = botConfig;
         let botContext = {};
-        let chatAccessToken = botUsers[selectedBotUser].accessToken;
+        let {accessToken: chatAccessToken, aiSettings} = botUsers[selectedBotUser];
+        let ollama;
 
-        console.log("STARTING BOT AS : " + selectedBotUser);
+        if (aiSettings && aiSettings.aiEnabled) {
+            ollama = new OllamaClient(aiSettings);
+            ollama.setup(`You are a chatter in a Twitch stream.  The following is a description of your personality: "${aiSettings.chatBotPersonalityPrompt}".  Every prompt after this one is a message from one of the other people in Twitch chat preceded by their name.  When you reply you do not need to append your username to the beginning of your response.`)
+        }
+
+        console.log("STARTING A BOT AS : " + selectedBotUser);
 
         let plugins = [deathCounterPlugin, requestPlugin, cameraObscura, modTools];
         
@@ -142,6 +183,9 @@ const startBot = async (botConfig, selectedBotUser) => {
                     console.error(e.message + ": " + e.stack);
                     EventQueue.sendErrorToChat(new Error(e));
                 }
+            } else if (command.includes(selectedBotUser)) {
+                let response = await ollama.send(context.username, command);
+                EventQueue.sendInfoToChat(response);
             }
         }
 
@@ -254,15 +298,14 @@ const startBot = async (botConfig, selectedBotUser) => {
             onMessageHandler(channel, {username, id: ""}, message);
         });
         client.onConnect(onConnectedHandler);
-        client.onRaid((channel, username, {viewerCount}) => {onRaid(channel, username, viewerCount)});
-        
-        let subListener = await pubSubClient.onSubscription(broadcasterId, onSubscription);
-        let cheerListener = await pubSubClient.onBits(broadcasterId, onBits);
-        let redemptionListener = await pubSubClient.onRedemption(broadcasterId, onRedemption);
 
-        eventListener.onChannelFollow(broadcasterId, broadcasterId, onFollow);
+        let followListener = eventListener.onChannelFollow(broadcasterId, broadcasterId, onFollow);
+        let raidListener = eventListener.onChannelRaidTo(broadcasterId, ({raidingBroadcasterName, viewers}) => onRaid(twitchChannel, raidingBroadcasterName, viewers));
+        let redemptionListener = eventListener.onChannelRedemptionAdd(broadcasterId, onRedemption);
+        let subListener = eventListener.onChannelSubscription(broadcasterId, onSubscription);
+        let cheerListener = eventListener.onChannelCheer(broadcasterId, onBits);
 
-        listeners = [subListener, cheerListener, redemptionListener];
+        listeners = [subListener, cheerListener, redemptionListener, followListener, raidListener];
 
         // Connect to twitch chat and pubsub
         await client.connect();
@@ -277,7 +320,11 @@ const stopBot = () => {
     EventQueue.stopEventListener();
     client.quit();
     listeners.forEach((listener) => {
-        listener.remove();
+        if (listener.remove) {
+            listener.remove();
+        } else if (listener.stop) {
+            listener.stop();
+        }
     });
 };
 

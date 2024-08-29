@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useConfig } from '../hooks/BotConfigHook';
+import { toast } from'react-toastify';
 
 const Settings = () => {
     const [botConfig, updateBotConfig, refreshBotConfig] = useConfig();
     const [animationSubPanel, setAnimationSubPanel] = useState('default');
+    const [selectedBot, setSelectedBot] = useState(null);
     const [aiSettings, setAiSettings] = useState({
         aiEnabled: false,
         aiModerationEnabled: false,
@@ -23,6 +25,11 @@ const Settings = () => {
         refreshBotConfig();
     }
 
+    const onChangeSelectedBotUser = (botUser) => {
+        setSelectedBot(botUser);
+        saveAiSettings();
+    }
+
     const deleteBotUser = async  (botUser) => {
         await window.api.send('deleteBotUser', botUser);
         if (botUser === botConfig.defaultBotUser) {
@@ -38,14 +45,21 @@ const Settings = () => {
     }
 
     const saveAiSettings = async () => {
-        updateBotConfig({...botConfig, aiSettings});
+        toast.info('Saving AI Settings...');
+        let botUsers = {...botConfig.botUsers};
+        botUsers[selectedBot] = {...botUsers[selectedBot], aiSettings};
+        await updateBotConfig({...botConfig, botUsers});
+        toast.info('AI settings saved!');
     }
 
     useEffect(() => {
         if (botConfig?.aiSettings) {
-            setAiSettings(botConfig?.aiSettings);
+            setAiSettings(botConfig?.aiSettings[selectedBot]);
         }
-    }, [botConfig]);
+        if (!selectedBot) {
+            setSelectedBot(botConfig?.twitchChannel);
+        }
+    }, [botConfig, selectedBot]);
 
     return (
         <div>
@@ -92,6 +106,11 @@ const Settings = () => {
             <h2>AI Integration</h2>
             <div style={{display: 'flex', flexDirection:'column'}}>
                 <h3>LLM Settings</h3>
+                <select value={selectedBot} onChange={e => onChangeSelectedBotUser(e.target.value)}>
+                    {Object.keys(botConfig?.botUsers || {}).map(userName => {
+                        return (<option key={`llm-bot-${userName}`} value={userName}>{userName}</option>);
+                    })}
+                </select>
                 <div>
                     <input type="checkbox" checked={aiSettings.aiEnabled} onChange={(e) => updateAiSetting('aiEnabled', e.target.checked)} />
                     <label>Enable Bot Personality</label>

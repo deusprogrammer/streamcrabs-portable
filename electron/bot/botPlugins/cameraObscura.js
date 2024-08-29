@@ -14,8 +14,6 @@ const updateGauge = (gauges) => {
 }
 
 const performAction = async (type, id, soundId, subPanel, message, botContext) => {
-    let port = botContext.botConfig.imageServerPort;
-
     if (type === "VIDEO") {
         let video;
         if (id === null) {

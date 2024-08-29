@@ -38,7 +38,7 @@ const Home = () => {
                 <label>Launch bot as:</label>
                 <select value={selectedBotUser} onChange={(e) => {onSelectBot(e.target.value)}}>
                     {Object.keys(config?.botUsers || {}).map(userName => {
-                        return <option key={`bot-user-${userName}`} value={`${userName}`}>{userName}</option>;
+                        return <option key={`bot-user-${userName}`} value={userName}>{userName}</option>;
                     })}
                 </select>
             </div>
