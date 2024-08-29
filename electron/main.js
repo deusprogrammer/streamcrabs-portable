@@ -188,7 +188,7 @@ const twitchLogin = async () => {
             config.botUsers = {};
         }
 
-        config.botUsers[twitchAuth.username] = twitchAuth;
+        config.botUsers[twitchAuth.username] = {...twitchAuth, aiSettings: {}};
 
         config.accessToken = twitchAuth.accessToken;
         config.refreshToken = twitchAuth.refreshToken;
@@ -208,9 +208,8 @@ const twitchLoginBotUser = async () => {
             config.botUsers = {};
         }
 
-        config.botUsers[twitchAuth.username] = twitchAuth;
+        config.botUsers[twitchAuth.username] = {...twitchAuth, aiSettings: {}};
 
-        console.log("USER CREATED: " + JSON.stringify(config.botUsers[twitchAuth.username]));
         fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
     } catch (e) {
         console.error("Twitch logon failed: " + e);
