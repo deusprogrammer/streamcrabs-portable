@@ -2,8 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { useConfig } from '../hooks/BotConfigHook';
 
 const Settings = () => {
-    const [botConfig, , refreshBotConfig] = useConfig();
+    const [botConfig, updateBotConfig, refreshBotConfig] = useConfig();
     const [animationSubPanel, setAnimationSubPanel] = useState('default');
+    const [aiSettings, setAiSettings] = useState({
+        aiEnabled: false,
+        aiModerationEnabled: false,
+        llmModel: "llama3.1",
+        llmUrl: "http://localhost:11434",
+        chatBotPersonalityPrompt: "",
+        moderationLlmModel: "llama-guard3.1",
+        moderationLlmUrl: "http://localhost:11434",
+        violencePrompt: "",
+        sexualPrompt: "",
+        politicalPrompt: "",
+        racialPrompt: "",
+    });
 
     const loginBotUser = async () => {
         await window.api.send('loginBotUser');
@@ -18,8 +31,21 @@ const Settings = () => {
         refreshBotConfig();
     }
 
+    const updateAiSetting = (setting, value) => {
+        const newAiSettings = {...aiSettings};
+        newAiSettings[setting] = value;
+        setAiSettings({...newAiSettings});
+    }
+
+    const saveAiSettings = async () => {
+        updateBotConfig({...botConfig, aiSettings});
+    }
+
     useEffect(() => {
-    }, []);
+        if (botConfig?.aiSettings) {
+            setAiSettings(botConfig?.aiSettings);
+        }
+    }, [botConfig]);
 
     return (
         <div>
@@ -67,36 +93,37 @@ const Settings = () => {
             <div style={{display: 'flex', flexDirection:'column'}}>
                 <h3>LLM Settings</h3>
                 <div>
-                    <input type="checkbox" />
+                    <input type="checkbox" checked={aiSettings.aiEnabled} onChange={(e) => updateAiSetting('aiEnabled', e.target.checked)} />
                     <label>Enable Bot Personality</label>
                 </div>
                 <label>LLM Server URL</label>
-                <input type="text" value={"http://localhost:11434"} />
+                <input type="text" value={aiSettings.llmUrl} onChange={(e) => {updateAiSetting('llmUrl', e.target.value)}} />
                 <label>Model</label>
-                <select>
+                <select value={aiSettings.llmModel} onChange={(e) => {updateAiSetting('llmModel', e.target.value)}}>
                     <option>llama3.1</option>
                 </select>
                 <label>Personality prompt</label>
-                <textarea value={""} />
+                <textarea onChange={(e) => {updateAiSetting('chatBotPersonalityPrompt', e.target.value)}} value={aiSettings.chatBotPersonalityPrompt}></textarea>
                 <h3>Moderation</h3>
                 <div>
-                    <input type="checkbox" /><label>Enable AI Moderation</label>
+                    <input type="checkbox" checked={aiSettings.aiModerationEnabled} onChange={(e) => updateAiSetting('aiModerationEnabled', e.target.checked)} /><label>Enable AI Moderation</label>
                 </div>
                 <label>LLM Server URL</label>
-                <input type="text" value={"http://localhost:11434"} />
+                <input type="text" value={aiSettings.moderationLlmUrl} />
                 <label>Model</label>
-                <select>
-                    <option>llama-guard3</option>
+                <select value={aiSettings.moderationLlmModel} onChange={(e) => {updateAiSetting('moderationLlmModel', e.target.value)}}>
+                    <option>llama-guard3.1</option>
                 </select>
                 <h4>Examples of Prohibited Content</h4>
                 <label>Sexual</label>
-                <input type="text" />
+                <input type="text" value={aiSettings.sexualPrompt} onChange={(e) => {updateAiSetting('sexualPrompt', e.target.value)}} />
                 <label>Racial</label>
-                <input type="text" />
+                <input type="text" value={aiSettings.racialPrompt} onChange={(e) => {updateAiSetting('racialPrompt', e.target.value)}} />
                 <label>Political</label>
-                <input type="text" />
+                <input type="text" value={aiSettings.politicalPrompt} onChange={(e) => {updateAiSetting('politicalPrompt', e.target.value)}} />
                 <label>Violence</label>
-                <input type="text" />
+                <input type="text" value={aiSettings.violencePrompt} onChange={(e) => {updateAiSetting('violencePrompt', e.target.value)}} />
+                <button onClick={() => {saveAiSettings()}}>Save AI Settings</button>
             </div>
         </div>
     )
