@@ -1,157 +1,139 @@
 const WebSocket = require('ws');
 
-// Queue for messages to avoid flooding
-let queue = [];
+class EventListener {
+    constructor() {
+        this.queue = [];
+        this.sockets = [];
+        this.panels = {};
+    }
 
-// List of panels that have initialized
-let panels = {};
+    start = (botContext) => {
+        this.connectWs(botContext.plugins);
+        this.listenerInterval = setInterval(async () => {
+            let message = this.queue.pop();
 
-/* 
-* CHAT BOT 
-*/
+            if (message) {
+                let event = message.event;
+                let text = event.eventData ? event.eventData.results.message : "EXT MESSAGE";
 
-let sockets = [];
-let listenerInterval;
-let extWs;
-
-// Setup websocket to communicate with extension
-const connectWs = () => {
-    extWs = new WebSocket.Server({ port: 8081 });
-
-    extWs.on('connection', async (ws) => {
-        sockets.push(ws);
-
-        ws.on('message', async (message) => {
-            let event = JSON.parse(message);
-    
-            console.log("BOT WS: " + JSON.stringify(event, null, 5));
-    
-            if (event.type === "PANEL_INIT") {
-                for (let plugin of eventContext.botContext.plugins) {
-                    plugin.wsInitHook(event, eventContext.botContext);
+                if (!event.targets) {
+                    event.targets = ["chat"];
                 }
-    
-                // Add panel to list for enabling and disabling functionality
-                panels[event.name] = Date.now();
-            } else if (event.type === "PANEL_PING") {
-                panels[event.name] = Date.now();
+
+                if (typeof text === "object" && text.stack) {
+                    console.error("ERROR: " + text.message + ":\n" + text.stack);
+                    text = text.message;
+                }
+
+                // Send event to chat
+                if (event.targets.includes("chat")) {
+                    if (text.startsWith("/")) {
+                        botContext.client.say(botContext.botConfig.twitchChannel, text);
+                    } else {
+                        botContext.client.say(botContext.botConfig.twitchChannel, "/me " + text);
+                    }
+                }
+
+                // Send event to panel via web socket
+                if (event.targets.includes("panel")) {
+                    this.sendEventToPanels(event);
+                }
             }
+        }, 2500);
+    }
+
+    stop = () => {
+        clearInterval(this.listenerInterval);
+        this.extWs.close();
+        this.sockets.forEach((socket) => {
+            socket.close();
         });
-    });
-}
-
-const sendEventToPanels = async (event) => {
-    event.to = "PANELS";
-    sockets.forEach(ws => ws.send(JSON.stringify(event)));
-}
-
-const sendEvent = async (event, verbosity = "simple") => {
-    queue.unshift({event, level: verbosity});
-}
-
-const sendInfoToChat = async (message, includePanel = false) => {
-    let targets = ["chat"]
-
-    if (includePanel) {
-        targets.push("panel");
     }
 
-    sendEvent({
-        type: "INFO",
-        targets,
-        eventData: {
-            results: {
-                message
-            }
-        }
-    })
-}
+    // Setup websocket to communicate with extension
+    connectWs = (plugins) => {
+        this.extWs = new WebSocket.Server({ port: 8081 });
 
-const sendErrorToChat = async(message) => {
-    let targets = ["chat"]
+        this.extWs.on('connection', async (ws) => {
+            this.sockets.push(ws);
 
-    sendEvent({
-        type: "INFO",
-        targets,
-        eventData: {
-            results: {
-                message
-            }
-        }
-    })
-}
-
-const sendEventToOverlays = (type, eventData) => {
-    const targets = ["panel"];
-
-    if (!eventData.results) {
-        eventData.results = {};
+            ws.on('message', async (message) => {
+                let event = JSON.parse(message);
+        
+                console.log("BOT WS: " + JSON.stringify(event, null, 5));
+        
+                if (event.type === "PANEL_INIT") {
+                    for (let plugin of plugins) {
+                        plugin.wsInitHook(event);
+                    }
+        
+                    // Add panel to list for enabling and disabling functionality
+                    this.panels[event.name] = Date.now();
+                } else if (event.type === "PANEL_PING") {
+                    this.panels[event.name] = Date.now();
+                }
+            });
+        });
     }
 
-    sendEvent({
-        type,
-        targets,
-        eventData
-    })
-}
+    sendEventToPanels = async (event) => {
+        event.to = "PANELS";
+        this.sockets.forEach(ws => ws.send(JSON.stringify(event)));
+    }
 
-let eventContext = {
-    botContext: {}
-}
+    sendEvent = async (event, verbosity = "simple") => {
+        this.queue.unshift({event, level: verbosity});
+    }
 
-let startEventListener = async (botContext) => {
-    eventContext.botContext = botContext;
-    connectWs();
-    //await Redemption.startListener(queue, eventContext.botContext, botContext.plugins);
-    listenerInterval = setInterval(async () => {
-        let message = queue.pop();
+    sendInfoToChat = async (message, includePanel = false) => {
+        let targets = ["chat"]
 
-        if (message) {
-            let event = message.event;
-            let text = event.eventData ? event.eventData.results.message : "EXT MESSAGE";
+        if (includePanel) {
+            targets.push("panel");
+        }
 
-            if (!event.targets) {
-                event.targets = ["chat"];
-            }
-
-            if (typeof text === "object" && text.stack) {
-                console.error("ERROR: " + text.message + ":\n" + text.stack);
-                text = text.message;
-            }
-
-            // Send event to chat
-            if (event.targets.includes("chat")) {
-                if (text.startsWith("/")) {
-                    eventContext.botContext.client.say(eventContext.botContext.botConfig.twitchChannel, text);
-                } else {
-                    eventContext.botContext.client.say(eventContext.botContext.botConfig.twitchChannel, "/me " + text);
+        this.sendEvent({
+            type: "INFO",
+            targets,
+            eventData: {
+                results: {
+                    message
                 }
             }
-            // Send event to panel via web socket
-            if (event.targets.includes("panel")) {
-                sendEventToPanels(event);
+        })
+    }
+
+    sendErrorToChat = async(message) => {
+        let targets = ["chat"]
+
+        this.sendEvent({
+            type: "INFO",
+            targets,
+            eventData: {
+                results: {
+                    message
+                }
             }
+        })
+    }
+
+    sendEventToOverlays = (type, eventData) => {
+        const targets = ["panel"];
+
+        if (!eventData.results) {
+            eventData.results = {};
         }
-    }, 2500);
+
+        this.sendEvent({
+            type,
+            targets,
+            eventData
+        })
+    }
+
+    isPanelInitialized = (panelName) => {
+        return Date.now() - this.panels[panelName] <= 30000;
+    }
 }
 
-let stopEventListener = () => {
-    clearInterval(listenerInterval);
-    extWs.close();
-    sockets.forEach((socket) => {
-        socket.close();
-    });
-}
-
-const isPanelInitialized = (panelName) => {
-    return Date.now() - panels[panelName] <= 30000;
-}
-
-exports.sendEvent = sendEvent;
-exports.sendEventToPanels = sendEventToPanels;
-exports.sendInfoToChat = sendInfoToChat;
-exports.sendErrorToChat = sendErrorToChat;
-exports.startEventListener = startEventListener;
-exports.stopEventListener = stopEventListener;
-exports.isPanelInitialized = isPanelInitialized;
-exports.sendEventToOverlays = sendEventToOverlays;
+exports.EventListener = EventListener;

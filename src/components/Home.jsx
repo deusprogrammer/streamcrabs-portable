@@ -1,53 +1,33 @@
-import React, {useState, useEffect} from 'react';
-import { getBotConfig } from '../api/StreamCrabsApi';
+import React from 'react';
+import { useBots, useConfig } from '../hooks/BotConfigHook';
 
 const Home = () => {
-    const [botStarted, setBotStarted] = useState(false);
-    const [config, setConfig] = useState(null);
-    const [selectedBotUser, setSelectedBotUser] = useState("_broadcaster")
-
-    useEffect(() => {
-        (async () => {
-            let config = await getBotConfig();
-            let botStarted = await window.api.send("getBotRunning");
-            setBotStarted(botStarted);
-            setConfig(config);
-            setSelectedBotUser(config.defaultBotUser);
-        })();
-    }, []);
-
-    const startBot = () => {
-        window.api.send(`startBot`, {selectedBotUser});
-        setBotStarted(true);
-    }
-
-    const stopBot = () => {
-        window.api.send(`stopBot`);
-        setBotStarted(false);
-    }
-
-    const onSelectBot = async (defaultBotUser) => {
-        await window.api.send('saveDefaultBotUser', {defaultBotUser});
-        setSelectedBotUser(defaultBotUser);
-    }
+    const [config] = useConfig();
+    const [botsStarted, startBot, stopBot] = useBots();
 
     return (
         <div className="splash-screen">
             <img className="streamcrab-logo" alt="streamcrab logo" src={`${process.env.PUBLIC_URL}/crab.png`} /><br />
-            <div>
-                <label>Launch bot as:</label>
-                <select value={selectedBotUser} onChange={(e) => {onSelectBot(e.target.value)}}>
-                    {Object.keys(config?.botUsers || {}).map(userName => {
-                        return <option key={`bot-user-${userName}`} value={userName}>{userName}</option>;
-                    })}
-                </select>
-            </div>
-            <br />
-            {!botStarted ? 
-                <button style={{width: "200px", height: "100px", fontSize: "20pt", background: "green", color: "white"}} onClick={startBot}>Start Bot</button> 
-                :
-                <button style={{width: "200px", height: "100px", fontSize: "20pt", background: "red", color: "white"}} onClick={stopBot}>Stop Bot</button>
-            }
+            <table>
+                <tbody>
+                {Object.keys(config?.botUsers || {}).map(userName => {
+                    return (
+                        <tr key={`bot-user-${userName}`}>
+                            <td><img alt={`profile for ${userName}`} style={{width: "50px"}} src={config?.botUsers[userName].profileImage} /></td>
+                            <td>{userName}</td>
+                            <td className={`${config?.botUsers[userName].role}-role-col`}>{config?.botUsers[userName].role}</td>
+                            <td>
+                                {!botsStarted?.[userName] ? 
+                                    <button style={{width: "200px", height: "50px", fontSize: "20pt", background: "green", color: "white"}} onClick={() => startBot(userName)}>Start Bot</button> 
+                                    :
+                                    <button style={{width: "200px", height: "50px", fontSize: "20pt", background: "red", color: "white"}} onClick={() => stopBot(userName)}>Stop Bot</button>
+                                }
+                            </td>
+                        </tr>
+                    );
+                })}
+                </tbody>
+            </table>
         </div>
     )
 };

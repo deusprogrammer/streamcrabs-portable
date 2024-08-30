@@ -6,6 +6,7 @@ const Settings = () => {
     const [botConfig, updateBotConfig, refreshBotConfig] = useConfig();
     const [animationSubPanel, setAnimationSubPanel] = useState('default');
     const [selectedBot, setSelectedBot] = useState(null);
+    const [selectedRole, setSelectedRole] = useState('twitch-bot');
     const [aiSettings, setAiSettings] = useState({
         aiEnabled: false,
         aiModerationEnabled: false,
@@ -27,14 +28,12 @@ const Settings = () => {
 
     const onChangeSelectedBotUser = (botUser) => {
         setSelectedBot(botUser);
-        saveAiSettings();
+        setAiSettings(botConfig?.botUsers[botUser]?.aiSettings);
+        saveBotSettings();
     }
 
     const deleteBotUser = async  (botUser) => {
         await window.api.send('deleteBotUser', botUser);
-        if (botUser === botConfig.defaultBotUser) {
-            await window.api.send('saveDefaultBotUser', {defaultBotUser: botConfig.twitchChannel});
-        }
         refreshBotConfig();
     }
 
@@ -44,21 +43,24 @@ const Settings = () => {
         setAiSettings({...newAiSettings});
     }
 
-    const saveAiSettings = async () => {
-        toast.info('Saving AI Settings...');
+    const saveBotSettings = async () => {
+        toast.info('Saving Bot Settings...');
         let botUsers = {...botConfig.botUsers};
-        botUsers[selectedBot] = {...botUsers[selectedBot], aiSettings};
+        botUsers[selectedBot] = {...botUsers[selectedBot], aiSettings, role: selectedRole};
         await updateBotConfig({...botConfig, botUsers});
-        toast.info('AI settings saved!');
+        toast.info('Bot settings saved!');
     }
 
     useEffect(() => {
-        if (botConfig?.aiSettings) {
-            setAiSettings(botConfig?.aiSettings[selectedBot]);
-        }
-        if (!selectedBot) {
+        let botUser = selectedBot;
+        if (!botUser) {
+            botUser = botConfig?.twitchChannel;
             setSelectedBot(botConfig?.twitchChannel);
         }
+        if (botConfig?.botUsers[botUser]?.aiSettings) {
+            setAiSettings(botConfig?.botUsers[botUser]?.aiSettings);
+        }
+        setSelectedRole(botConfig?.botUsers[botUser]?.role || 'twitch-bot');
     }, [botConfig, selectedBot]);
 
     return (
@@ -67,14 +69,6 @@ const Settings = () => {
             <h2>Overlay URLs</h2>
             <p>Bring the below into your XSplit or OBS presentation layouts to show monsters and battle notifications.  It is recommended to place the encounter panel on either side of the screen, and the notification panel on the top or bottom of the screen.</p>
             <div style={{display: "table"}}>
-                <div style={{display: "table-row"}}>
-                    <div style={{display: "table-cell", padding: "10px", fontWeight: "bolder"}}>Death Counter Panel:</div>
-                    <div style={{display: "table-cell", padding: "10px"}}><input type="text" value={`http://localhost:${botConfig?.imageServerPort}/overlays/death-counter`} style={{width: "400px"}} /></div>
-                </div>
-                <div style={{display: "table-row"}}>
-                    <div style={{display: "table-cell", padding: "10px", fontWeight: "bolder"}}>Request Panel:</div>
-                    <div style={{display: "table-cell", padding: "10px"}}><input type="text" value={`http://localhost:${botConfig?.imageServerPort}/overlays/requests`} style={{width: "400px"}} /></div>
-                </div>
                 <div style={{display: "table-row"}}>
                     <div style={{display: "table-cell", padding: "10px", fontWeight: "bolder"}}>Soundboard:</div>
                     <div style={{display: "table-cell", padding: "10px"}}><input type="text" value={`http://localhost:${botConfig?.imageServerPort}/overlays/sound-player`} style={{width: "400px"}} /></div>
@@ -103,46 +97,52 @@ const Settings = () => {
                 </tbody>
             </table>
             <button onClick={() => {loginBotUser()}}>Add Bot User</button>
-            <h2>AI Integration</h2>
-            <div style={{display: 'flex', flexDirection:'column'}}>
-                <h3>LLM Settings</h3>
-                <select value={selectedBot} onChange={e => onChangeSelectedBotUser(e.target.value)}>
-                    {Object.keys(botConfig?.botUsers || {}).map(userName => {
-                        return (<option key={`llm-bot-${userName}`} value={userName}>{userName}</option>);
-                    })}
-                </select>
-                <div>
-                    <input type="checkbox" checked={aiSettings.aiEnabled} onChange={(e) => updateAiSetting('aiEnabled', e.target.checked)} />
-                    <label>Enable Bot Personality</label>
+            <h2>Bot Settings</h2>
+            <div>
+                <h3>Bot</h3>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr'}}>
+                    <label>Modify Settings For:</label>
+                    <select value={selectedBot} onChange={e => onChangeSelectedBotUser(e.target.value)}>
+                        {Object.keys(botConfig?.botUsers || {}).map(userName => {
+                            return (<option key={`llm-bot-${userName}`} value={userName}>{userName}</option>);
+                        })}
+                    </select>
                 </div>
-                <label>LLM Server URL</label>
-                <input type="text" value={aiSettings.llmUrl} onChange={(e) => {updateAiSetting('llmUrl', e.target.value)}} />
-                <label>Model</label>
-                <select value={aiSettings.llmModel} onChange={(e) => {updateAiSetting('llmModel', e.target.value)}}>
-                    <option>llama3.1</option>
-                </select>
-                <label>Personality prompt</label>
-                <textarea onChange={(e) => {updateAiSetting('chatBotPersonalityPrompt', e.target.value)}} value={aiSettings.chatBotPersonalityPrompt}></textarea>
-                <h3>Moderation</h3>
-                <div>
-                    <input type="checkbox" checked={aiSettings.aiModerationEnabled} onChange={(e) => updateAiSetting('aiModerationEnabled', e.target.checked)} /><label>Enable AI Moderation</label>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr'}}>
+                    <label>Bot Role</label>
+                    <select value={selectedRole} onChange={e => setSelectedRole(e.target.value)}>
+                        <option value='twitch-bot'>Twitch Bot</option>
+                        <option value='chat-bot'>Chat Bot</option>
+                    </select>
                 </div>
-                <label>LLM Server URL</label>
-                <input type="text" value={aiSettings.moderationLlmUrl} />
-                <label>Model</label>
-                <select value={aiSettings.moderationLlmModel} onChange={(e) => {updateAiSetting('moderationLlmModel', e.target.value)}}>
-                    <option>llama-guard3.1</option>
-                </select>
-                <h4>Examples of Prohibited Content</h4>
-                <label>Sexual</label>
-                <input type="text" value={aiSettings.sexualPrompt} onChange={(e) => {updateAiSetting('sexualPrompt', e.target.value)}} />
-                <label>Racial</label>
-                <input type="text" value={aiSettings.racialPrompt} onChange={(e) => {updateAiSetting('racialPrompt', e.target.value)}} />
-                <label>Political</label>
-                <input type="text" value={aiSettings.politicalPrompt} onChange={(e) => {updateAiSetting('politicalPrompt', e.target.value)}} />
-                <label>Violence</label>
-                <input type="text" value={aiSettings.violencePrompt} onChange={(e) => {updateAiSetting('violencePrompt', e.target.value)}} />
-                <button onClick={() => {saveAiSettings()}}>Save AI Settings</button>
+                { selectedRole === 'chat-bot' ?
+                    <>
+                        <h3>AI Integration</h3>
+                        <div style={{border: '1px solid white', margin: '10px 20px 10px 20px', padding: '10px'}}>
+                            <div>
+                                <input type="checkbox" checked={aiSettings.aiEnabled} onChange={(e) => updateAiSetting('aiEnabled', e.target.checked)} />
+                                <label>Enable Bot Personality</label>
+                            </div>
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr'}}>
+                                <label>LLM Server URL</label>
+                                <input type="text" value={aiSettings.llmUrl} onChange={(e) => {updateAiSetting('llmUrl', e.target.value)}} />
+                            </div>
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr'}}>
+                            <label>Model</label>
+                            <select value={aiSettings.llmModel} onChange={(e) => {updateAiSetting('llmModel', e.target.value)}}>
+                                <option>llama3.1</option>
+                            </select>
+                            </div>
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr'}}>
+                                <label>Personality prompt</label>
+                                <textarea onChange={(e) => {updateAiSetting('chatBotPersonalityPrompt', e.target.value)}} value={aiSettings.chatBotPersonalityPrompt}></textarea>
+                            </div>
+                        </div>
+                    </>
+                    :
+                    null
+                }
+                <button onClick={() => {saveBotSettings()}}>Save Settings</button>
             </div>
         </div>
     )

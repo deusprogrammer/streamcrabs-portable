@@ -23,3 +23,33 @@ export const useConfig = () => {
 
     return [config, updateConfig, refreshConfig];
 }
+
+export const useBots = () => {
+    const [botRunning, setBotRunning] = useState({});
+    
+    useEffect(() => {
+        pullBots();
+    }, []);
+
+    const pullBots = async () => {
+        let tmp = await window.api.send("getBotRunning");
+        console.log("RUNNING " + JSON.stringify(tmp, null, 5));
+        setBotRunning(tmp);
+    }
+
+    const startBot = async (userName) => {
+        console.log(`STARTING ${userName}`);
+        await window.api.send(`startBot`, userName);
+        console.log("BOT STARTED");
+        pullBots();
+    }
+
+    const stopBot = async (userName) => {
+        console.log(`STOPPING ${userName}`);
+        await window.api.send(`stopBot`, userName);
+        console.log("BOT STARTED");
+        pullBots();
+    }
+    
+    return [botRunning, startBot, stopBot];
+}

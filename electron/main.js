@@ -7,8 +7,10 @@ const eventQueue = require('./bot/components/base/eventQueue');
 const { app, ipcMain, protocol, BrowserWindow } = require('electron');
 
 const { runImageServer } = require('./fileServer');
-const { startBot, stopBot } = require('./bot/bot');
+const { StreamcrabsBot, AIChatBot } = require('./bot/bot');
+const { CameraObscuraPlugin } = require('./bot/botPlugins/cameraObscura');
 const { migrateConfig } = require('./migration');
+
 const { getTwitchAuth, refreshAccessToken } = require('./twitchAuth');
 
 const HOME =
@@ -66,7 +68,7 @@ if (!fs.existsSync(CONFIG_FILE)) {
 
 let config = JSON.parse(fs.readFileSync(CONFIG_FILE).toString());
 let userData = JSON.parse(fs.readFileSync(USER_DATA_FILE).toString());
-let botRunning = false;
+let bots = {};
 let uiLocked = false;
 
 const uuidv4 = () => {
@@ -234,14 +236,38 @@ ipcMain.handle('getUiLock', () => {
     return uiLocked;
 });
 
-ipcMain.handle('startBot', (event, {selectedBotUser}) => {
-    botRunning = true;
-    startBot(config, selectedBotUser);
+ipcMain.handle('startBot', async(event, botUser) => {
+    if (botUser in bots) {
+        return;
+    }
+
+    let bot;
+
+    if (config.botUsers[botUser].role === 'twitch-bot') {
+        bot = new StreamcrabsBot(config, botUser, [CameraObscuraPlugin]);
+    } else if (config.botUsers[botUser].role === 'chat-bot') {
+        bot = new AIChatBot(config, botUser);
+    }
+
+    bots[botUser] = bot;
+    await bot.start();
 });
 
-ipcMain.handle('stopBot', () => {
-    botRunning = false;
-    stopBot();
+ipcMain.handle('stopBot', async (event, botUser) => {
+    if (!(botUser in bots)) {
+        return;
+    }
+
+    await bots[botUser].stop();
+    delete bots[botUser];
+});
+
+ipcMain.handle('getBotRunning', () => {
+    let botsRunning = {};
+    for (let bot in bots) {
+        botsRunning[bot] = bots[bot] ? true : false;
+    }
+    return botsRunning;
 });
 
 ipcMain.handle('login', async () => {
@@ -385,10 +411,6 @@ ipcMain.handle('getBotConfig', () => {
 ipcMain.handle('storeBotConfig', (event, botConfig) => {
     config = botConfig;
     fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
-});
-
-ipcMain.handle('getBotRunning', () => {
-    return botRunning;
 });
 
 ipcMain.handle('checkMigration', async () => {
