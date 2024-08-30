@@ -7,7 +7,7 @@ const ollamaJs = require('ollama');
 
 const readline = require('readline');
 
-const versionNumber = "3.0b";
+const versionNumber = "4.0";
 
 class OllamaClient {
     constructor(aiSettings) {
