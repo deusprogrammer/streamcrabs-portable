@@ -5,11 +5,13 @@ const axios = require('axios');
 const eventQueue = require('./bot/components/base/eventQueue');
 
 const { app, ipcMain, protocol, BrowserWindow } = require('electron');
-const electronOauth2 = require('electron-oauth2');
 
 const { runImageServer } = require('./fileServer');
-const { startBot, stopBot } = require('./bot/bot');
+const { StreamcrabsBot, AIChatBot } = require('./bot/bot');
+const { CameraObscuraPlugin } = require('./bot/botPlugins/cameraObscura');
 const { migrateConfig } = require('./migration');
+
+const { getTwitchAuth, refreshAccessToken } = require('./twitchAuth');
 
 const HOME =
     process.platform === 'darwin'
@@ -57,6 +59,8 @@ if (!fs.existsSync(CONFIG_FILE)) {
         "profileImage": "",
         "accessToken": "",
         "refreshToken": "",
+        "defaultBotUser": null,
+        "botUsers": {},
         "clientId": "z9sxe9lmchklcfoqpcaoe1fo8a660e",
         "clientSecret": "ebtdjo3gx50d5qyk331mn6rrzh5wlx",
    }));
@@ -64,7 +68,7 @@ if (!fs.existsSync(CONFIG_FILE)) {
 
 let config = JSON.parse(fs.readFileSync(CONFIG_FILE).toString());
 let userData = JSON.parse(fs.readFileSync(USER_DATA_FILE).toString());
-let botRunning = false;
+let bots = {};
 let uiLocked = false;
 
 const uuidv4 = () => {
@@ -76,24 +80,6 @@ if (!config.clientId || !config.clientSecret) {
     config.clientSecret = process.env.TWITCH_CLIENT_SECRET;
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config));
 }
-
-const oauthConfig = {
-    clientId: config.clientId,
-    clientSecret: config.clientSecret,
-    authorizationUrl: 'https://id.twitch.tv/oauth2/authorize',
-    tokenUrl: 'https://id.twitch.tv/oauth2/token',
-    redirectUri: 'http://localhost'
-}
-
-const loginWindowParams = {
-    alwaysOnTop: true,
-    autoHideMenuBar: true,
-    webPreferences: {
-      nodeIntegration: false
-    }
-  };
-
-const twitchOauth = electronOauth2(oauthConfig, loginWindowParams);
 
 let win;
 const createWindow = async () => {
@@ -161,26 +147,35 @@ app.on('window-all-closed', () => {
     }
 });
 
-const getTwitchUser = async (username, accessToken) => {
-    let url = `https://api.twitch.tv/helix/users`;
-    if (username) {
-        url += `?login=${username}`;
-    }
-    let [{login, id, profile_image_url}] = (await axios.get(url, {
-        headers: {
-            "authorization": `Bearer ${accessToken}`,
-            "client-id": config.clientId
-        }
-    })).data.data;
-
-    return {twitchChannel: login, profileImage: profile_image_url, id};
-}
-
 const twitchRefresh = async () => {
     try {
-        let token = await twitchOauth.refreshToken(config.refreshToken);
-        config.accessToken = token.access_token;
-        config.refreshToken = token.refresh_token;
+        let {access_token, refresh_token} = await refreshAccessToken(config.clientId, config.clientSecret, config.refreshToken);
+        config.accessToken = access_token;
+        config.refreshToken = refresh_token;
+        fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
+    } catch (e) {
+        console.error("Twitch refresh failed: " + e);
+    }
+}
+
+const twitchRefreshBotUser = async (userName) => {
+    let botUser = config.botUsers[userName];
+
+    if (!botUser) {
+        return null;
+    }
+
+    try {
+        let {access_token, refresh_token} = await refreshAccessToken(config.clientId, config.clientSecret, botUser.refreshToken);
+        if (!config.botUsers) {
+            config.botUsers = {};
+        }
+
+        config.botUsers[userName] = {
+            ...botUser,
+            accessToken: access_token,
+            refreshToken: refresh_token
+        }
         fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
     } catch (e) {
         console.error("Twitch refresh failed: " + e);
@@ -189,15 +184,34 @@ const twitchRefresh = async () => {
 
 const twitchLogin = async () => {
     try {
-        let token = await twitchOauth.getAccessToken({
-            scope: 'chat:read chat:edit channel:read:redemptions channel:read:subscriptions bits:read channel:manage:redemptions moderator:read:followers'
-        });
-        let {twitchChannel, profileImage, id} = await getTwitchUser(null, token.access_token);
-        config.accessToken = token.access_token;
-        config.refreshToken = token.refresh_token;
-        config.twitchChannel = twitchChannel;
-        config.profileImage = profileImage;
-        config.broadcasterId = id;
+        let twitchAuth = await getTwitchAuth(config.clientId, config.clientSecret, true);
+        
+        if (!config.botUsers) {
+            config.botUsers = {};
+        }
+
+        config.botUsers[twitchAuth.username] = {...twitchAuth, aiSettings: {}};
+
+        config.accessToken = twitchAuth.accessToken;
+        config.refreshToken = twitchAuth.refreshToken;
+        config.twitchChannel = twitchAuth.username;
+        config.profileImage = twitchAuth.profileImage;
+        config.broadcasterId = twitchAuth.id;
+        fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
+    } catch (e) {
+        console.error("Twitch logon failed: " + e);
+    }
+}
+
+const twitchLoginBotUser = async () => {
+    try {
+        let twitchAuth = await getTwitchAuth(config.clientId, config.clientSecret, true);
+        if (!config.botUsers) {
+            config.botUsers = {};
+        }
+
+        config.botUsers[twitchAuth.username] = {...twitchAuth, aiSettings: {}};
+
         fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
     } catch (e) {
         console.error("Twitch logon failed: " + e);
@@ -206,6 +220,10 @@ const twitchLogin = async () => {
 
 if (config.clientId && config.clientSecret && config.accessToken && config.refreshToken) {
     twitchRefresh();
+
+    Object.keys(config.botUsers || {}).forEach((botUser) => {
+        twitchRefreshBotUser(botUser);
+    });
 }
 
 // Bridged functionality
@@ -218,14 +236,38 @@ ipcMain.handle('getUiLock', () => {
     return uiLocked;
 });
 
-ipcMain.handle('startBot', (event) => {
-    botRunning = true;
-    startBot(config);
+ipcMain.handle('startBot', async(event, botUser) => {
+    if (botUser in bots) {
+        return;
+    }
+
+    let bot;
+
+    if (config.botUsers[botUser].role === 'twitch-bot') {
+        bot = new StreamcrabsBot(config, botUser, [CameraObscuraPlugin]);
+    } else if (config.botUsers[botUser].role === 'chat-bot') {
+        bot = new AIChatBot(config, botUser);
+    }
+
+    bots[botUser] = bot;
+    await bot.start();
 });
 
-ipcMain.handle('stopBot', () => {
-    botRunning = false;
-    stopBot();
+ipcMain.handle('stopBot', async (event, botUser) => {
+    if (!(botUser in bots)) {
+        return;
+    }
+
+    await bots[botUser].stop();
+    delete bots[botUser];
+});
+
+ipcMain.handle('getBotRunning', () => {
+    let botsRunning = {};
+    for (let bot in bots) {
+        botsRunning[bot] = bots[bot] ? true : false;
+    }
+    return botsRunning;
 });
 
 ipcMain.handle('login', async () => {
@@ -238,10 +280,30 @@ ipcMain.handle('login', async () => {
     }
 });
 
+ipcMain.handle('loginBotUser', async () => {
+    try {
+        await twitchLoginBotUser();
+        return true;
+    } catch (e) {
+        console.error('Unable to retrieve access token: ' + e);
+        return false;
+    }
+});
+
+ipcMain.handle('saveDefaultBotUser', async (event, {defaultBotUser}) => {
+    config = {...config, defaultBotUser};
+    fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
+});
+
+ipcMain.handle('deleteBotUser', async (event, botUserName) => {
+    delete config.botUsers[botUserName];
+    fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
+});
+
 ipcMain.handle('storeMedia', (event, {imagePayload, extension}) => {
     let buffer = Buffer.from(imagePayload, "base64");
     let filename = Date.now() + extension;
-    let filePath = path.normalize(`${__dirname}/media/${filename}`);
+    let filePath = path.normalize(`${MEDIA_DIRECTORY}/${filename}`);
     fs.writeFileSync(filePath, buffer);
     return `app://media/${filename}`;
 });
@@ -346,8 +408,9 @@ ipcMain.handle('getBotConfig', () => {
     return config;
 });
 
-ipcMain.handle('getBotRunning', () => {
-    return botRunning;
+ipcMain.handle('storeBotConfig', (event, botConfig) => {
+    config = botConfig;
+    fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
 });
 
 ipcMain.handle('checkMigration', async () => {

@@ -87,7 +87,7 @@ const App = () => {
                             label: "Bot",
                             to: `/`
                         }, {
-                            label: "Overlays",
+                            label: "Settings",
                             to: `/configs/overlays`
                         }, {
                             label: "MediaPool",

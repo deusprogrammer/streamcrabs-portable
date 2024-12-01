@@ -400,3 +400,11 @@ button {
     width: 100%;
   }
 }
+
+.twitch-bot-role-col {
+  color: green;
+}
+
+.chat-bot-role-col {
+  color: purple
+}

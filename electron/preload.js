@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld(
         send: async (channel, args) => {
             // whitelist channels
             let validChannels = [
+                "deleteBotUser",
+                "saveDefaultBotUser",
                 "updateUiLock",
                 "getUiLock",
                 "startBot", 
@@ -17,6 +19,7 @@ contextBridge.exposeInMainWorld(
                 "getBotRunning",
                 "restartBot",
                 "login",
+                "loginBotUser",
                 "storeMedia",
                 "updateEnableList",
                 "getDynamicAlert",
@@ -30,6 +33,7 @@ contextBridge.exposeInMainWorld(
                 "updateUserData",
                 "updateAlerts",
                 "getBotConfig",
+                "storeBotConfig",
                 "updateCommands",
                 "saveCommand",
                 "removeCommand",

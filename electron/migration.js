@@ -47,7 +47,9 @@ module.exports.migrateConfig = async (migratedConfig, homeDirectory) => {
         "broadcasterId",
         "profileImage",
         "accessToken",
-        "refreshToken"
+        "refreshToken",
+        "defaultBotUser",
+        "botUsers"
     ];
     let localConfigObject = JSON.parse(fs.readFileSync(CONFIG_FILE).toString());
 
