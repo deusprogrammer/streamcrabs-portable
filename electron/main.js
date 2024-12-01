@@ -303,7 +303,7 @@ ipcMain.handle('deleteBotUser', async (event, botUserName) => {
 ipcMain.handle('storeMedia', (event, {imagePayload, extension}) => {
     let buffer = Buffer.from(imagePayload, "base64");
     let filename = Date.now() + extension;
-    let filePath = path.normalize(`${__dirname}/media/${filename}`);
+    let filePath = path.normalize(`${MEDIA_DIRECTORY}/${filename}`);
     fs.writeFileSync(filePath, buffer);
     return `app://media/${filename}`;
 });
