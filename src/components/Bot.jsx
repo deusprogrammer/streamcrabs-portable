@@ -57,10 +57,10 @@ const Settings = () => {
             botUser = botConfig?.twitchChannel;
             setSelectedBot(botConfig?.twitchChannel);
         }
-        if (botConfig?.botUsers[botUser]?.aiSettings) {
-            setAiSettings(botConfig?.botUsers[botUser]?.aiSettings);
+        if (botConfig?.botUsers?.[botUser]?.aiSettings) {
+            setAiSettings(botConfig?.botUsers?.[botUser]?.aiSettings);
         }
-        setSelectedRole(botConfig?.botUsers[botUser]?.role || 'twitch-bot');
+        setSelectedRole(botConfig?.botUsers?.[botUser]?.role || 'twitch-bot');
     }, [botConfig, selectedBot]);
 
     return (
