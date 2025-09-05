@@ -64,6 +64,10 @@ export const updateGauges = async (gauges) => {
     await window.api.send("updateGauges", gauges); 
 }
 
+export const getLlmList = async (domain) => {
+    return await window.api.send("getLlmList", domain);
+}
+
 export const createChannelPointReward = async (title, cost, botConfig) => {
     let {data: {data: rewards}} = await axios.post(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${botConfig.broadcasterId}`, {
         title,

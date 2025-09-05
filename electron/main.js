@@ -132,7 +132,7 @@ const createWindow = async () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-    let port = await runImageServer(HOME, DEFAULT_FILE_SERVER_PORT);
+    let port = await runImageServer(DEFAULT_FILE_SERVER_PORT);
     config.imageServerPort = port;
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 5));
     createWindow();
@@ -410,6 +410,7 @@ ipcMain.handle('getBotConfig', () => {
 
 ipcMain.handle('storeBotConfig', (event, botConfig) => {
     config = botConfig;
+    console.log("BOT CONFIG: " + JSON.stringify(botConfig, null, 2));
     fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
 });
 
@@ -435,6 +436,15 @@ ipcMain.handle('migrate', async (event, migrationKey) => {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 5));
 
     return;
+});
+
+ipcMain.handle('getLlmList', async (event, domain) => {
+    try {
+        const { data } = await axios.get(`${domain}/api/tags`);
+        return data.models;
+    } catch (e) {
+        return [];
+    }
 });
 
 ipcMain.handle('fireOverlayEvent', (event, {type, eventData}) => {

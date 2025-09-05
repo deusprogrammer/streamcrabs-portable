@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld(
                 "removeCommand",
                 "updateRedemptions",
                 "updateGauges",
+                "getLlmList",
                 "checkMigration",
                 "migrate",
                 "fireOverlayEvent"
@@ -46,7 +47,7 @@ contextBridge.exposeInMainWorld(
             if (validChannels.includes(channel)) {
                 return await ipcRenderer.invoke(channel, args);
             } else {
-                throw `Invalid channel: ${channel}`;
+                throw new Error(`Invalid channel: ${channel}`);
             }
         }
     }
