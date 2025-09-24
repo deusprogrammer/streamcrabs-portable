@@ -3,28 +3,25 @@ const { ChatClient } = require('@twurple/chat');
 const { ApiClient } = require('@twurple/api');
 const { EventSubWsListener } = require('@twurple/eventsub-ws');
 const { EventListener } = require('./components/base/eventQueue');
-const ollamaJs = require('ollama');
+const OpenAI = require('openai');
 
 const readline = require('readline');
 
 const versionNumber = "4.0";
 
-class OllamaClient {
+class OpenAIClient {
     constructor(aiSettings) {
         this.aiSettings = aiSettings;
         this.messages = [];
-        this.client  = new ollamaJs.Ollama({ host: aiSettings.llmUrl });        
+        this.client = new OpenAI({
+            apiKey: aiSettings.apiKey
+        });        
     }
 
     setup = async (setupPrompt) => {
         this.messages.push({
             role: "system",
             content: setupPrompt
-        });
-        await this.client.chat({
-            stream: false,
-            model: this.aiSettings.llmModel,
-            messages: this.messages
         });
     }
 
@@ -33,13 +30,17 @@ class OllamaClient {
             role: "user",
             content: `${username}: ${message}`
         });
-        let response = await this.client.chat({
-            stream: false,
-            model: this.aiSettings.llmModel,
-            messages: this.messages
+        
+        const response = await this.client.chat.completions.create({
+            model: this.aiSettings.model || 'gpt-3.5-turbo',
+            messages: this.messages,
+            max_tokens: this.aiSettings.maxTokens || 150,
+            temperature: this.aiSettings.temperature || 0.7
         });
-        this.messages.push(response.message);
-        return response.message.content;
+        
+        const assistantMessage = response.choices[0].message;
+        this.messages.push(assistantMessage);
+        return assistantMessage.content;
     }
 }
 
@@ -53,16 +54,16 @@ class AIChatBot {
 
     // Define configuration options for chat bot
     start = async () => {
-        console.log("STARTING LLAMA BOT " + this.botUser);
+        console.log("STARTING OPENAI BOT " + this.botUser);
 
         try {
             let {clientId, twitchChannel, botUsers} = this.botConfig;
             let {accessToken: chatAccessToken, aiSettings} = botUsers[this.botUser];
-            let ollama;
+            let openai;
 
             if (aiSettings?.aiEnabled) {
-                ollama = new OllamaClient(aiSettings);
-                ollama.setup(`You are a chatter in a Twitch stream.  The following is a description of your personality: "${aiSettings.chatBotPersonalityPrompt}".  Every prompt after this one is a message from one of the other people in Twitch chat preceded by their name.  When you reply you do not need to append your username to the beginning of your response.`)
+                openai = new OpenAIClient(aiSettings);
+                await openai.setup(`You are a chatter in a Twitch stream.  The following is a description of your personality: "${aiSettings.chatBotPersonalityPrompt}".  Every prompt after this one is a message from one of the other people in Twitch chat preceded by their name.  When you reply you do not need to append your username to the beginning of your response.`)
             }
 
             this.eventListener = this.eventListener = new EventListener();
@@ -73,7 +74,7 @@ class AIChatBot {
                 const command = msg.trim();
 
                 if (aiSettings?.aiEnabled && command.includes(this.botUser)) {
-                    let response = await ollama.send(context.username, command);
+                    let response = await openai.send(context.username, command);
                     this.chatClient.say(twitchChannel, response);
                 }
             }
@@ -83,7 +84,7 @@ class AIChatBot {
                 console.log("* Connected to Twitch Chat");
 
                 // Announce restart
-                this.chatClient.say(twitchChannel, `Streamcrabs Llama Bot version ${versionNumber} is online.  All systems nominal.`);
+                this.chatClient.say(twitchChannel, `Streamcrabs OpenAI Bot version ${versionNumber} is online.  All systems nominal.`);
                 this.isRunning = true;
             }
 

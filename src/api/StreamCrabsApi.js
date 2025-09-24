@@ -118,3 +118,7 @@ export const checkMigration = async () => {
 export const fireOverlayEvent = async (type, eventData) => {
     return await window.api.send("fireOverlayEvent", {type, eventData});
 }
+
+export const getOpenAIModels = async (apiKey, baseURL) => {
+    return await window.api.send("getOpenAIModels", apiKey, baseURL);
+}

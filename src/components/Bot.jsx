@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useConfig } from "../hooks/BotConfigHook";
 import { toast } from "react-toastify";
-import { getLlmList } from "../api/StreamCrabsApi";
+import { getOpenAIModels } from "../api/StreamCrabsApi";
 
 const Settings = () => {
   const [botConfig, updateBotConfig, refreshBotConfig] = useConfig();
@@ -11,11 +11,14 @@ const Settings = () => {
   const [aiSettings, setAiSettings] = useState({
     aiEnabled: false,
     aiModerationEnabled: false,
-    llmModel: "llama3.1",
-    llmUrl: "http://localhost:11434",
+    apiKey: "",
+    baseURL: "https://api.openai.com/v1",
+    model: "gpt-3.5-turbo",
+    maxTokens: 150,
+    temperature: 0.7,
     chatBotPersonalityPrompt: "",
-    moderationLlmModel: "llama-guard3.1",
-    moderationLlmUrl: "http://localhost:11434",
+    moderationModel: "gpt-3.5-turbo",
+    moderationBaseURL: "https://api.openai.com/v1",
     violencePrompt: "",
     sexualPrompt: "",
     politicalPrompt: "",
@@ -30,7 +33,24 @@ const Settings = () => {
 
   const onChangeSelectedBotUser = (botUser) => {
     setSelectedBot(botUser);
-    setAiSettings(botConfig?.botUsers[botUser]?.aiSettings);
+    setAiSettings(
+      botConfig?.botUsers[botUser]?.aiSettings || {
+        aiEnabled: false,
+        aiModerationEnabled: false,
+        apiKey: "",
+        baseURL: "https://api.openai.com/v1",
+        model: "gpt-3.5-turbo",
+        maxTokens: 150,
+        temperature: 0.7,
+        chatBotPersonalityPrompt: "",
+        moderationModel: "gpt-3.5-turbo",
+        moderationBaseURL: "https://api.openai.com/v1",
+        violencePrompt: "",
+        sexualPrompt: "",
+        politicalPrompt: "",
+        racialPrompt: "",
+      }
+    );
     saveBotSettings();
   };
 
@@ -55,6 +75,26 @@ const Settings = () => {
     };
     await updateBotConfig({ ...botConfig, botUsers });
     toast.info("Bot settings saved!");
+  };
+
+  const refreshOpenAIModels = async () => {
+    if (!aiSettings.apiKey) {
+      toast.error("Please enter an API key first");
+      return;
+    }
+
+    try {
+      toast.info("Fetching OpenAI models...");
+      const models = await getOpenAIModels(
+        aiSettings.apiKey,
+        aiSettings.baseURL
+      );
+      setLlmModels(models);
+      updateBotConfig({ ...botConfig, llmModels: models });
+      toast.success(`Loaded ${models.length} models`);
+    } catch (error) {
+      toast.error("Failed to fetch models: " + error.message);
+    }
   };
 
   useEffect(() => {
@@ -178,7 +218,7 @@ const Settings = () => {
           >
             {Object.keys(botConfig?.botUsers || {}).map((userName) => {
               return (
-                <option key={`llm-bot-${userName}`} value={userName}>
+                <option key={`ai-bot-${userName}`} value={userName}>
                   {userName}
                 </option>
               );
@@ -215,32 +255,70 @@ const Settings = () => {
                 />
                 <label>Enable Bot Personality</label>
               </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-                <label>LLM Server URL</label>
+                <label>API Key</label>
                 <input
-                  type="text"
-                  value={aiSettings.llmUrl}
-                  onChange={(e) => {
-                    updateAiSetting("llmUrl", e.target.value);
-                  }}
+                  type="password"
+                  value={aiSettings.apiKey}
+                  onChange={(e) => updateAiSetting("apiKey", e.target.value)}
                 />
               </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+                <label>Base URL</label>
+                <input
+                  type="text"
+                  placeholder="https://api.openai.com/v1"
+                  value={aiSettings.baseURL}
+                  onChange={(e) => updateAiSetting("baseURL", e.target.value)}
+                />
+              </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
                 <label>Model</label>
                 <select
-                  value={aiSettings.llmModel}
-                  onChange={(e) => {
-                    updateAiSetting("llmModel", e.target.value);
-                  }}
+                  value={aiSettings.model}
+                  onChange={(e) => updateAiSetting("model", e.target.value)}
                 >
-                  <option>llama3.1</option>
-                  {llmModels.map(({ model }) => (
-                    <option>{model.split(":")[0]}</option>
+                  <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                  <option value="gpt-4">gpt-4</option>
+                  <option value="gpt-4-turbo">gpt-4-turbo</option>
+                  {llmModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.id}
+                    </option>
                   ))}
                 </select>
               </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-                <label>Personality prompt</label>
+                <label>Max Tokens</label>
+                <input
+                  type="number"
+                  value={aiSettings.maxTokens}
+                  onChange={(e) =>
+                    updateAiSetting("maxTokens", parseInt(e.target.value))
+                  }
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+                <label>Temperature</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="2"
+                  value={aiSettings.temperature}
+                  onChange={(e) =>
+                    updateAiSetting("temperature", parseFloat(e.target.value))
+                  }
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+                <label>Personality Prompt</label>
                 <textarea
                   onChange={(e) => {
                     updateAiSetting("chatBotPersonalityPrompt", e.target.value);
@@ -248,14 +326,8 @@ const Settings = () => {
                   value={aiSettings.chatBotPersonalityPrompt}
                 ></textarea>
               </div>
-              <button
-                onClick={async () => {
-                  const llmList = await getLlmList(aiSettings.llmUrl);
-                  updateBotConfig({ ...botConfig, llmModels: llmList });
-                }}
-              >
-                Refresh LLM Models
-              </button>
+
+              <button onClick={refreshOpenAIModels}>Refresh Models</button>
             </div>
           </>
         ) : null}

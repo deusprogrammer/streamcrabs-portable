@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
+const OpenAI = require('openai');
 
 const eventQueue = require('./bot/components/base/eventQueue');
 
@@ -449,6 +450,22 @@ ipcMain.handle('getLlmList', async (event, domain) => {
 
 ipcMain.handle('fireOverlayEvent', (event, {type, eventData}) => {
     eventQueue.sendEventToOverlays(type, eventData);
+});
+
+// In your main process (where other IPC handlers are)
+ipcMain.handle('getOpenAIModels', async (event, apiKey, baseURL = 'https://api.openai.com/v1') => {
+    try {
+        const openai = new OpenAI({
+            apiKey,
+            baseURL
+        });
+        
+        const response = await openai.models.list();
+        return response.data; // Array of model objects
+    } catch (error) {
+        console.error('Error fetching OpenAI models:', error);
+        throw error;
+    }
 });
 
 ipcMain.on('updateGauges', (event, gauges) => {

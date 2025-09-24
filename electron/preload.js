@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld(
                 "getLlmList",
                 "checkMigration",
                 "migrate",
+                "getOpenAIModels",
                 "fireOverlayEvent"
             ];
             if (validChannels.includes(channel)) {
