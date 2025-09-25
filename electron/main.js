@@ -22,12 +22,93 @@ const MEDIA_DIRECTORY = path.join(HOME, "media");
 const CONFIG_FILE = path.join(HOME, "config.json");
 const MIGRATION_FILE = path.join(HOME, "migration.json");
 const USER_DATA_FILE = path.join(HOME, "config.json");
+const LOGS_DIRECTORY = path.join(HOME, "logs");
 const DEFAULT_FILE_SERVER_PORT = "8080";
 const ENV = process.env.RUNTIME_ENV || "prod";
+
+// Create logs directory if it doesn't exist
+if (!fs.existsSync(LOGS_DIRECTORY)) {
+    console.log("LOGS DIRECTORY NOT FOUND");
+    fs.mkdirSync(LOGS_DIRECTORY, {recursive: true});
+}
+
+// Setup logging
+const setupLogging = () => {
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+    const originalConsoleInfo = console.info;
+    
+    const getLogFileName = () => {
+        const date = new Date();
+        return `streamcrabs-${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}.log`;
+    };
+    
+    const writeToLogFile = (level, message) => {
+        const timestamp = new Date().toISOString();
+        const logEntry = `[${timestamp}] [${level}] ${message}\n`;
+        const logFile = path.join(LOGS_DIRECTORY, getLogFileName());
+        
+        try {
+            fs.appendFileSync(logFile, logEntry);
+        } catch (error) {
+            // Fallback to original console if file write fails
+            originalConsoleError('Failed to write to log file:', error);
+        }
+    };
+    
+    console.log = (...args) => {
+        const message = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        writeToLogFile('INFO', message);
+        originalConsoleLog(...args);
+    };
+    
+    console.error = (...args) => {
+        const message = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        writeToLogFile('ERROR', message);
+        originalConsoleError(...args);
+    };
+    
+    console.warn = (...args) => {
+        const message = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        writeToLogFile('WARN', message);
+        originalConsoleWarn(...args);
+    };
+    
+    console.info = (...args) => {
+        const message = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        writeToLogFile('INFO', message);
+        originalConsoleInfo(...args);
+    };
+    
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error) => {
+        writeToLogFile('FATAL', `Uncaught Exception: ${error.message}\n${error.stack}`);
+        originalConsoleError('Uncaught Exception:', error);
+    });
+    
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+        writeToLogFile('ERROR', `Unhandled Rejection at: ${promise}, reason: ${reason}`);
+        originalConsoleError('Unhandled Rejection at:', promise, 'reason:', reason);
+    });
+};
+
+// Initialize logging
+setupLogging();
 
 console.log("ENV:         " + ENV);
 console.log("HOME:        " + HOME);
 console.log("CONFIG FILE: " + CONFIG_FILE);
+console.log("LOGS DIR:    " + LOGS_DIRECTORY);
 
 if (!fs.existsSync(HOME)) {
     console.log("HOME NOT FOUND");
