@@ -133,7 +133,7 @@ const createWindow = async () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-    let port = await runImageServer(DEFAULT_FILE_SERVER_PORT);
+    let port = await runImageServer(HOME, DEFAULT_FILE_SERVER_PORT);
     config.imageServerPort = port;
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 5));
     createWindow();

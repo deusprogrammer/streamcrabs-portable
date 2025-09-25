@@ -4,6 +4,8 @@
   "private": true,
   "main": "./electron/main.js",
   "homepage": "./",
+  "author": "breakfast-garage-gaming",
+  "description": "An AI-powered Twitch chat bot that can interact with viewers in real-time and overlay system.",
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
