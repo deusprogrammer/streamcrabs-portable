@@ -34,6 +34,58 @@ const Settings = () => {
   });
   const [llmModels, setLlmModels] = useState([]);
 
+  const tooltipStyle = {
+    position: "relative",
+    display: "inline-block",
+    cursor: "help",
+    marginLeft: "5px",
+    color: "#888",
+    fontSize: "12px",
+  };
+
+  const tooltipTextStyle = {
+    visibility: "hidden",
+    width: "300px",
+    backgroundColor: "#333",
+    color: "#fff",
+    textAlign: "left",
+    borderRadius: "6px",
+    padding: "8px",
+    position: "absolute",
+    zIndex: "1",
+    top: "50%",
+    left: "100%",
+    marginLeft: "10px",
+    marginTop: "-20px",
+    opacity: "0",
+    transition: "opacity 0.3s",
+    fontSize: "12px",
+    lineHeight: "1.4",
+  };
+
+  const Tooltip = ({ text, children }) => {
+    const [isVisible, setIsVisible] = useState(false);
+
+    return (
+      <div
+        style={tooltipStyle}
+        onMouseEnter={() => setIsVisible(true)}
+        onMouseLeave={() => setIsVisible(false)}
+      >
+        {children}
+        <div
+          style={{
+            ...tooltipTextStyle,
+            visibility: isVisible ? "visible" : "hidden",
+            opacity: isVisible ? "1" : "0",
+          }}
+        >
+          {text}
+        </div>
+      </div>
+    );
+  };
+
   const loginBotUser = async () => {
     await window.api.send("loginBotUser");
     refreshBotConfig();
@@ -245,10 +297,18 @@ const Settings = () => {
             }
           />
           <label>Enable Summarization Agent</label>
+          <Tooltip text="When enabled, the summarization agent will compress chat history to manage context length and reduce API costs.">
+            ℹ️
+          </Tooltip>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-          <label>API Key</label>
+          <div>
+            <label>API Key</label>
+            <Tooltip text="Your OpenAI API key. This will be used to authenticate requests to the OpenAI API for summarization.">
+              ℹ️
+            </Tooltip>
+          </div>
           <input
             type="password"
             value={summarizationAgent.apiKey}
@@ -259,7 +319,12 @@ const Settings = () => {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-          <label>Base URL</label>
+          <div>
+            <label>Base URL</label>
+            <Tooltip text="The API endpoint URL. Use https://api.openai.com/v1 for OpenAI, or a custom URL for services like Ollama (e.g., http://localhost:11434/v1).">
+              ℹ️
+            </Tooltip>
+          </div>
           <input
             type="text"
             placeholder="https://api.openai.com/v1"
@@ -271,7 +336,12 @@ const Settings = () => {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-          <label>Model</label>
+          <div>
+            <label>Model</label>
+            <Tooltip text="The AI model to use for summarization. GPT-3.5-turbo is cost-effective, while GPT-4 provides higher quality summaries.">
+              ℹ️
+            </Tooltip>
+          </div>
           <select
             value={summarizationAgent.model}
             onChange={(e) =>
@@ -290,7 +360,12 @@ const Settings = () => {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-          <label>Max Tokens</label>
+          <div>
+            <label>Max Tokens</label>
+            <Tooltip text="Maximum number of tokens the model can generate. Higher values allow longer summaries but cost more. 1 token ≈ 4 characters.">
+              ℹ️
+            </Tooltip>
+          </div>
           <input
             type="number"
             value={summarizationAgent.maxTokens}
@@ -301,7 +376,12 @@ const Settings = () => {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-          <label>Temperature</label>
+          <div>
+            <label>Temperature</label>
+            <Tooltip text="Controls randomness in responses (0.0-2.0). Lower values (0.1-0.3) produce more consistent, factual summaries. Higher values (0.7-1.0) produce more creative responses.">
+              ℹ️
+            </Tooltip>
+          </div>
           <input
             type="number"
             step="0.1"
@@ -405,10 +485,18 @@ const Settings = () => {
                   }
                 />
                 <label>Enable Bot Personality</label>
+                <Tooltip text="When enabled, the bot will respond to chat messages that mention its name using AI with the configured personality.">
+                  ℹ️
+                </Tooltip>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-                <label>API Key</label>
+                <div>
+                  <label>API Key</label>
+                  <Tooltip text="Your OpenAI API key for this bot. Each bot can have its own API key for separate billing/usage tracking.">
+                    ℹ️
+                  </Tooltip>
+                </div>
                 <input
                   type="password"
                   value={aiSettings.apiKey}
@@ -417,7 +505,12 @@ const Settings = () => {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-                <label>Base URL</label>
+                <div>
+                  <label>Base URL</label>
+                  <Tooltip text="The API endpoint URL. Use https://api.openai.com/v1 for OpenAI, or a custom URL for services like Ollama (e.g., http://localhost:11434/v1).">
+                    ℹ️
+                  </Tooltip>
+                </div>
                 <input
                   type="text"
                   placeholder="https://api.openai.com/v1"
@@ -427,7 +520,12 @@ const Settings = () => {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-                <label>Model</label>
+                <div>
+                  <label>Model</label>
+                  <Tooltip text="The AI model to use for chat responses. GPT-3.5-turbo is fast and cost-effective for chat. GPT-4 provides higher quality responses.">
+                    ℹ️
+                  </Tooltip>
+                </div>
                 <select
                   value={aiSettings.model}
                   onChange={(e) => updateAiSetting("model", e.target.value)}
@@ -444,7 +542,12 @@ const Settings = () => {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-                <label>Max Tokens</label>
+                <div>
+                  <label>Max Tokens</label>
+                  <Tooltip text="Maximum length of bot responses. 150 tokens ≈ 110 words, good for chat. Higher values allow longer responses but cost more.">
+                    ℹ️
+                  </Tooltip>
+                </div>
                 <input
                   type="number"
                   value={aiSettings.maxTokens}
@@ -455,7 +558,12 @@ const Settings = () => {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-                <label>Temperature</label>
+                <div>
+                  <label>Temperature</label>
+                  <Tooltip text="Controls creativity/randomness (0.0-2.0). Lower values (0.1-0.5) are more focused and consistent. Higher values (0.7-1.2) are more creative and varied.">
+                    ℹ️
+                  </Tooltip>
+                </div>
                 <input
                   type="number"
                   step="0.1"
@@ -469,7 +577,12 @@ const Settings = () => {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
-                <label>Personality Prompt</label>
+                <div>
+                  <label>Personality Prompt</label>
+                  <Tooltip text="Describes the bot's personality and behavior. Be specific about tone, interests, and how the bot should interact with viewers.">
+                    ℹ️
+                  </Tooltip>
+                </div>
                 <textarea
                   onChange={(e) => {
                     updateAiSetting("chatBotPersonalityPrompt", e.target.value);
