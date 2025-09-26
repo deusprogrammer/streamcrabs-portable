@@ -24,6 +24,14 @@ const Settings = () => {
     politicalPrompt: "",
     racialPrompt: "",
   });
+  const [summarizationAgent, setSummarizationAgent] = useState({
+    enabled: false,
+    apiKey: "",
+    baseURL: "https://api.openai.com/v1",
+    model: "gpt-3.5-turbo",
+    maxTokens: 500,
+    temperature: 0.3,
+  });
   const [llmModels, setLlmModels] = useState([]);
 
   const loginBotUser = async () => {
@@ -31,7 +39,8 @@ const Settings = () => {
     refreshBotConfig();
   };
 
-  const onChangeSelectedBotUser = (botUser) => {
+  const onChangeSelectedBotUser = async (botUser) => {
+    await saveBotSettings();
     setSelectedBot(botUser);
     setAiSettings(
       botConfig?.botUsers[botUser]?.aiSettings || {
@@ -51,7 +60,6 @@ const Settings = () => {
         racialPrompt: "",
       }
     );
-    saveBotSettings();
   };
 
   const deleteBotUser = async (botUser) => {
@@ -65,6 +73,12 @@ const Settings = () => {
     setAiSettings({ ...newAiSettings });
   };
 
+  const updateSummarizationSetting = (setting, value) => {
+    const newSummarizationAgent = { ...summarizationAgent };
+    newSummarizationAgent[setting] = value;
+    setSummarizationAgent({ ...newSummarizationAgent });
+  };
+
   const saveBotSettings = async () => {
     toast.info("Saving Bot Settings...");
     let botUsers = { ...botConfig.botUsers };
@@ -73,7 +87,18 @@ const Settings = () => {
       aiSettings,
       role: selectedRole,
     };
-    await updateBotConfig({ ...botConfig, botUsers });
+
+    // Save summarization agent at bot config level
+    const newBotConfig = {
+      ...botConfig,
+      botUsers,
+      aiSettings: {
+        ...botConfig.aiSettings,
+        summarizationAgent,
+      },
+    };
+
+    await updateBotConfig(newBotConfig);
     toast.info("Bot settings saved!");
   };
 
@@ -97,6 +122,26 @@ const Settings = () => {
     }
   };
 
+  const refreshSummarizationModels = async () => {
+    if (!summarizationAgent.apiKey) {
+      toast.error("Please enter a summarization API key first");
+      return;
+    }
+
+    try {
+      toast.info("Fetching summarization models...");
+      const models = await getOpenAIModels(
+        summarizationAgent.apiKey,
+        summarizationAgent.baseURL
+      );
+      setLlmModels(models);
+      updateBotConfig({ ...botConfig, llmModels: models });
+      toast.success(`Loaded ${models.length} models`);
+    } catch (error) {
+      toast.error("Failed to fetch models: " + error.message);
+    }
+  };
+
   useEffect(() => {
     let botUser = selectedBot;
     if (!botUser) {
@@ -108,6 +153,18 @@ const Settings = () => {
     }
     setSelectedRole(botConfig?.botUsers?.[botUser]?.role || "twitch-bot");
     setLlmModels(botConfig?.llmModels || []);
+
+    // Load summarization agent settings
+    setSummarizationAgent(
+      botConfig?.aiSettings?.summarizationAgent || {
+        enabled: false,
+        apiKey: "",
+        baseURL: "https://api.openai.com/v1",
+        model: "gpt-3.5-turbo",
+        maxTokens: 500,
+        temperature: 0.3,
+      }
+    );
   }, [botConfig, selectedBot]);
 
   return (
@@ -169,6 +226,100 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      <h2>Global AI Settings</h2>
+      <div
+        style={{
+          border: "1px solid white",
+          margin: "10px 20px 10px 20px",
+          padding: "10px",
+        }}
+      >
+        <h3>Summarization Agent</h3>
+        <div>
+          <input
+            type="checkbox"
+            checked={summarizationAgent.enabled}
+            onChange={(e) =>
+              updateSummarizationSetting("enabled", e.target.checked)
+            }
+          />
+          <label>Enable Summarization Agent</label>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+          <label>API Key</label>
+          <input
+            type="password"
+            value={summarizationAgent.apiKey}
+            onChange={(e) =>
+              updateSummarizationSetting("apiKey", e.target.value)
+            }
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+          <label>Base URL</label>
+          <input
+            type="text"
+            placeholder="https://api.openai.com/v1"
+            value={summarizationAgent.baseURL}
+            onChange={(e) =>
+              updateSummarizationSetting("baseURL", e.target.value)
+            }
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+          <label>Model</label>
+          <select
+            value={summarizationAgent.model}
+            onChange={(e) =>
+              updateSummarizationSetting("model", e.target.value)
+            }
+          >
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+            <option value="gpt-4">gpt-4</option>
+            <option value="gpt-4-turbo">gpt-4-turbo</option>
+            {llmModels.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.id}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+          <label>Max Tokens</label>
+          <input
+            type="number"
+            value={summarizationAgent.maxTokens}
+            onChange={(e) =>
+              updateSummarizationSetting("maxTokens", parseInt(e.target.value))
+            }
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+          <label>Temperature</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            max="2"
+            value={summarizationAgent.temperature}
+            onChange={(e) =>
+              updateSummarizationSetting(
+                "temperature",
+                parseFloat(e.target.value)
+              )
+            }
+          />
+        </div>
+
+        <button onClick={refreshSummarizationModels}>Refresh Models</button>
+      </div>
+
       <h2>Bot Users</h2>
       <table>
         <thead>
