@@ -10,19 +10,31 @@ const readline = require('readline');
 const versionNumber = "4.0";
 
 class OpenAIClient {
-    constructor(aiSettings) {
+    constructor(aiSettings, messageThreshold = 50, tokenThreshold = 3000) {
         this.aiSettings = aiSettings;
         this.messages = [];
+        this.originalSetupPrompt = null;
+        this.messageCount = 0;
+        this.messageThreshold = messageThreshold;
+        this.tokenThreshold = tokenThreshold;
         this.client = new OpenAI({
-            apiKey: aiSettings.apiKey
+            apiKey: aiSettings.apiKey,
+            baseURL: aiSettings.baseURL
         });        
     }
 
     setup = async (setupPrompt) => {
+        this.originalSetupPrompt = setupPrompt;
         this.messages.push({
             role: "system",
             content: setupPrompt
         });
+    }
+
+    estimateTokenCount = () => {
+        // Rough estimate: 1 token ≈ 4 characters
+        const totalChars = this.messages.reduce((total, msg) => total + msg.content.length, 0);
+        return Math.ceil(totalChars / 4);
     }
 
     send = async (username, message) => {
@@ -30,6 +42,7 @@ class OpenAIClient {
             role: "user",
             content: `${username}: ${message}`
         });
+        this.messageCount++;
         
         const response = await this.client.chat.completions.create({
             model: this.aiSettings.model || 'gpt-3.5-turbo',
@@ -42,6 +55,60 @@ class OpenAIClient {
         this.messages.push(assistantMessage);
         return assistantMessage.content;
     }
+
+    shouldSummarize = () => {
+        return this.messageCount >= this.messageThreshold || this.estimateTokenCount() >= this.tokenThreshold;
+    }
+
+    summarize = async (summarizationClient) => {
+        if (this.messages.length <= 2) return; // Don't summarize if we only have system prompt + 1 exchange
+
+        console.log(`Summarizing conversation: ${this.messageCount} messages, ~${this.estimateTokenCount()} tokens`);
+
+        // Extract conversation (excluding system messages)
+        const conversationMessages = this.messages.filter(msg => msg.role !== 'system');
+        const conversationText = conversationMessages
+            .map(msg => `${msg.role}: ${msg.content}`)
+            .join('\n');
+
+        const summaryPrompt = `Please create a concise summary of the following Twitch chat conversation. Focus on key topics discussed, user interactions, and any important context that would help an AI chatbot continue the conversation naturally.
+
+Conversation to summarize:
+${conversationText}
+
+Please provide a brief but comprehensive summary:`;
+
+        try {
+            const summaryResponse = await summarizationClient.chat.completions.create({
+                model: summarizationClient.model,
+                messages: [{
+                    role: "user",
+                    content: summaryPrompt
+                }],
+                max_tokens: summarizationClient.maxTokens,
+                temperature: summarizationClient.temperature
+            });
+
+            const summary = summaryResponse.choices[0].message.content;
+
+            // Reset messages with original setup prompt and summary
+            this.messages = [
+                {
+                    role: "system",
+                    content: this.originalSetupPrompt
+                },
+                {
+                    role: "system",
+                    content: `CONVERSATION SUMMARY: The following is a summary of the chat conversation so far: ${summary}`
+                }
+            ];
+            
+            this.messageCount = 0;
+            console.log("Conversation summarized and context reset");
+        } catch (error) {
+            console.error("Failed to summarize conversation:", error);
+        }
+    }
 }
 
 class AIChatBot {
@@ -50,6 +117,7 @@ class AIChatBot {
         this.botUser = botUser;
         this.eventQueue = new EventListener();
         this.isRunning = false;
+        this.summarizationClient = null;
     }
 
     // Define configuration options for chat bot
@@ -57,12 +125,27 @@ class AIChatBot {
         console.log("STARTING OPENAI BOT " + this.botUser);
 
         try {
-            let {clientId, twitchChannel, botUsers} = this.botConfig;
+            let {clientId, twitchChannel, botUsers, aiSettings: globalAiSettings} = this.botConfig;
             let {accessToken: chatAccessToken, aiSettings} = botUsers[this.botUser];
             let openai;
 
+            // Initialize summarization client if enabled
+            if (globalAiSettings?.summarizationAgent?.enabled) {
+                console.log("Summarization agent enabled");
+                this.summarizationClient = new OpenAI({
+                    apiKey: globalAiSettings.summarizationAgent.apiKey,
+                    baseURL: globalAiSettings.summarizationAgent.baseURL
+                });
+                this.summarizationClient.model = globalAiSettings.summarizationAgent.model || 'gpt-3.5-turbo';
+                this.summarizationClient.maxTokens = globalAiSettings.summarizationAgent.maxTokens || 500;
+                this.summarizationClient.temperature = globalAiSettings.summarizationAgent.temperature || 0.3;
+            }
+
             if (aiSettings?.aiEnabled) {
-                openai = new OpenAIClient(aiSettings);
+                const messageThreshold = globalAiSettings?.summarizationAgent?.messageThreshold || 50;
+                const tokenThreshold = globalAiSettings?.summarizationAgent?.tokenThreshold || 3000;
+                
+                openai = new OpenAIClient(aiSettings, messageThreshold, tokenThreshold);
                 await openai.setup(`You are a chatter in a Twitch stream.  The following is a description of your personality: "${aiSettings.chatBotPersonalityPrompt}".  Every prompt after this one is a message from one of the other people in Twitch chat preceded by their name.  When you reply you do not need to append your username to the beginning of your response.`)
             }
 
@@ -74,6 +157,11 @@ class AIChatBot {
                 const command = msg.trim();
 
                 if (aiSettings?.aiEnabled && command.includes(this.botUser)) {
+                    // Check if we should summarize before processing the message
+                    if (this.summarizationClient && openai.shouldSummarize()) {
+                        await openai.summarize(this.summarizationClient);
+                    }
+
                     let response = await openai.send(context.username, command);
                     this.chatClient.say(twitchChannel, response);
                 }

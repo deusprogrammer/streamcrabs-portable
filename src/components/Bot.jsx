@@ -31,6 +31,8 @@ const Settings = () => {
     model: "gpt-3.5-turbo",
     maxTokens: 500,
     temperature: 0.3,
+    messageThreshold: 50,
+    tokenThreshold: 3000, // Add this
   });
   const [llmModels, setLlmModels] = useState([]);
 
@@ -215,6 +217,8 @@ const Settings = () => {
         model: "gpt-3.5-turbo",
         maxTokens: 500,
         temperature: 0.3,
+        messageThreshold: 50,
+        tokenThreshold: 3000, // Add this
       }
     );
   }, [botConfig, selectedBot]);
@@ -392,6 +396,47 @@ const Settings = () => {
               updateSummarizationSetting(
                 "temperature",
                 parseFloat(e.target.value)
+              )
+            }
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+          <div>
+            <label>Message Threshold</label>
+            <Tooltip text="Number of messages in the conversation before summarization is triggered.">
+              ℹ️
+            </Tooltip>
+          </div>
+          <input
+            type="number"
+            min="1"
+            value={summarizationAgent.messageThreshold}
+            onChange={(e) =>
+              updateSummarizationSetting(
+                "messageThreshold",
+                parseInt(e.target.value)
+              )
+            }
+          />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr" }}>
+          <div>
+            <label>Token Threshold</label>
+            <Tooltip text="Approximate token count before conversation gets summarized. Higher values allow longer conversations but may hit API limits.">
+              ℹ️
+            </Tooltip>
+          </div>
+          <input
+            type="number"
+            min="1000"
+            max="10000"
+            value={summarizationAgent.tokenThreshold}
+            onChange={(e) =>
+              updateSummarizationSetting(
+                "tokenThreshold",
+                parseInt(e.target.value)
               )
             }
           />
