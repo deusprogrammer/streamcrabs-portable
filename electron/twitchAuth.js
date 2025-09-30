@@ -78,13 +78,30 @@ const getTwitchAuth = (clientId, clientSecret, forceVerify = false) => {
                     return;
                 }
 
-                const {access_token: accessToken, refresh_token: refreshToken} = await getAccessToken(clientId, clientSecret, code);
+                // Get the full token response including expires_in
+                const tokenResponse = await getAccessToken(clientId, clientSecret, code);
+                const { 
+                    access_token: accessToken, 
+                    refresh_token: refreshToken,
+                    expires_in: expiresIn 
+                } = tokenResponse;
+
+                // Calculate obtainment timestamp
+                const obtainmentTimestamp = Date.now();
 
                 console.log("Retrieved access token: " + accessToken);
 
                 let {twitchChannel, profileImage, id} = await getTwitchUser(clientId, null, accessToken);
 
-                resolve({username: twitchChannel, profileImage, id, accessToken, refreshToken});
+                resolve({
+                    username: twitchChannel, 
+                    profileImage, 
+                    id, 
+                    accessToken, 
+                    refreshToken,
+                    expiresIn,
+                    obtainmentTimestamp
+                });
             }
         });
     });

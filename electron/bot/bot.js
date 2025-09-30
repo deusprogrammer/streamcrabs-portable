@@ -9,6 +9,10 @@ const readline = require('readline');
 
 const versionNumber = "4.0";
 
+// TODO Use RefreshingProvider
+
+const SETUP_PROMPT_TOKEN_THRESHOLD = 1000; // Summarize setup prompt if it exceeds this
+
 class OpenAIClient {
     constructor(aiSettings, messageThreshold = 50, tokenThreshold = 3000) {
         this.aiSettings = aiSettings;
@@ -35,6 +39,11 @@ class OpenAIClient {
         // Rough estimate: 1 token ≈ 4 characters
         const totalChars = this.messages.reduce((total, msg) => total + msg.content.length, 0);
         return Math.ceil(totalChars / 4);
+    }
+
+    estimateSetupPromptTokens = () => {
+        if (!this.originalSetupPrompt) return 0;
+        return Math.ceil(this.originalSetupPrompt.length / 4);
     }
 
     send = async (username, message) => {
@@ -109,6 +118,45 @@ Please provide a brief but comprehensive summary:`;
             console.error("Failed to summarize conversation:", error);
         }
     }
+
+    summarizeSetupPrompt = async (summarizationClient) => {
+        if (!this.originalSetupPrompt) return;
+        
+        console.log(`Setup prompt too long (~${this.estimateSetupPromptTokens()} tokens), summarizing...`);
+        
+        const summaryPrompt = `Please create a concise summary of the following chatbot personality prompt. Preserve all key personality traits, behaviors, and instructions while making it more compact:
+
+Original prompt:
+${this.originalSetupPrompt}
+
+Please provide a condensed version that maintains the core personality:`;
+
+        try {
+            const summaryResponse = await summarizationClient.chat.completions.create({
+                model: summarizationClient.model,
+                messages: [{
+                    role: "user",
+                    content: summaryPrompt
+                }],
+                max_tokens: summarizationClient.maxTokens,
+                temperature: summarizationClient.temperature
+            });
+
+            const summarizedPrompt = summaryResponse.choices[0].message.content;
+            
+            // Replace the original setup prompt with the summary
+            this.originalSetupPrompt = summarizedPrompt;
+            
+            // Update the first message if it exists
+            if (this.messages.length > 0 && this.messages[0].role === 'system') {
+                this.messages[0].content = summarizedPrompt;
+            }
+            
+            console.log("Setup prompt summarized successfully");
+        } catch (error) {
+            console.error("Failed to summarize setup prompt:", error);
+        }
+    }
 }
 
 class AIChatBot {
@@ -147,6 +195,11 @@ class AIChatBot {
                 
                 openai = new OpenAIClient(aiSettings, messageThreshold, tokenThreshold);
                 await openai.setup(`You are a chatter in a Twitch stream.  The following is a description of your personality: "${aiSettings.chatBotPersonalityPrompt}".  Every prompt after this one is a message from one of the other people in Twitch chat preceded by their name.  When you reply you do not need to append your username to the beginning of your response.`)
+                
+                // Check if setup prompt is too long and summarize if needed
+                if (this.summarizationClient && openai.estimateSetupPromptTokens() > SETUP_PROMPT_TOKEN_THRESHOLD) {
+                    await openai.summarizeSetupPrompt(this.summarizationClient);
+                }
             }
 
             this.eventListener = this.eventListener = new EventListener();

@@ -248,7 +248,7 @@ const twitchRefreshBotUser = async (userName) => {
     }
 
     try {
-        let {access_token, refresh_token} = await refreshAccessToken(config.clientId, config.clientSecret, botUser.refreshToken);
+        let {access_token, refresh_token, expires_in} = await refreshAccessToken(config.clientId, config.clientSecret, botUser.refreshToken);
         if (!config.botUsers) {
             config.botUsers = {};
         }
@@ -256,7 +256,9 @@ const twitchRefreshBotUser = async (userName) => {
         config.botUsers[userName] = {
             ...botUser,
             accessToken: access_token,
-            refreshToken: refresh_token
+            refreshToken: refresh_token,
+            expiresIn: expires_in,
+            obtainmentTimestamp: Date.now()
         }
         fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
     } catch (e) {
@@ -272,10 +274,16 @@ const twitchLogin = async () => {
             config.botUsers = {};
         }
 
-        config.botUsers[twitchAuth.username] = {...twitchAuth, aiSettings: {}};
+        config.botUsers[twitchAuth.username] = {
+            ...twitchAuth, 
+            aiSettings: {},
+            role: 'twitch-bot'
+        };
 
         config.accessToken = twitchAuth.accessToken;
         config.refreshToken = twitchAuth.refreshToken;
+        config.expiresIn = twitchAuth.expiresIn;
+        config.obtainmentTimestamp = twitchAuth.obtainmentTimestamp;
         config.twitchChannel = twitchAuth.username;
         config.profileImage = twitchAuth.profileImage;
         config.broadcasterId = twitchAuth.id;
@@ -292,7 +300,11 @@ const twitchLoginBotUser = async () => {
             config.botUsers = {};
         }
 
-        config.botUsers[twitchAuth.username] = {...twitchAuth, aiSettings: {}};
+        config.botUsers[twitchAuth.username] = {
+            ...twitchAuth, 
+            aiSettings: {},
+            role: 'chat-bot'
+        };
 
         fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
     } catch (e) {
@@ -552,4 +564,35 @@ ipcMain.handle('getOpenAIModels', async (event, apiKey, baseURL = 'https://api.o
 ipcMain.on('updateGauges', (event, gauges) => {
     config.gauges = gauges;
     fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
+});
+
+// Add this IPC handler for token refresh callbacks from the bot
+ipcMain.on('refreshAuth', (userId, newTokenData) => {
+    console.log('Token refreshed for user:', userId);
+    
+    // Find the bot user by ID and update their tokens
+    const botUserEntry = Object.entries(config.botUsers || {}).find(([username, userData]) => 
+        userData.id === userId
+    );
+    
+    if (botUserEntry) {
+        const [username, userData] = botUserEntry;
+        config.botUsers[username] = {
+            ...userData,
+            accessToken: newTokenData.accessToken,
+            refreshToken: newTokenData.refreshToken,
+            expiresIn: newTokenData.expiresIn,
+            obtainmentTimestamp: newTokenData.obtainmentTimestamp
+        };
+        
+        // Also update main config if this is the main channel user
+        if (username === config.twitchChannel) {
+            config.accessToken = newTokenData.accessToken;
+            config.refreshToken = newTokenData.refreshToken;
+            config.expiresIn = newTokenData.expiresIn;
+            config.obtainmentTimestamp = newTokenData.obtainmentTimestamp;
+        }
+        
+        fs.writeFileSync(CONFIG_FILE, Buffer.from(JSON.stringify(config, null, 5)));
+    }
 });
