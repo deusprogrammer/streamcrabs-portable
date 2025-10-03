@@ -283,9 +283,9 @@ module.exports.CameraObscuraPlugin = class CameraObscuraPlugin extends BotPlugin
         await this.alert(alertMessage, "subAlert", {variable: 100});
     };
 
-    raidHook = async ({username, viewers}) => {
+    raidHook = async ({userName, viewers}) => {
         const {enabled, messageTemplate} = this.botContext.botConfig.alertConfigs.raidAlert;
-        const alertMessage = messageTemplate.replace("${raider}", username).replace("${viewers}", viewers);
+        const alertMessage = messageTemplate.replace("${raider}", userName).replace("${viewers}", viewers);
     
         if (!enabled) {
             return;

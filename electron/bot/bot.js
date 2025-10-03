@@ -503,7 +503,7 @@ class StreamcrabsBot {
             this.chatClient.onConnect(onConnectedHandler);
 
             let followListener =  this.eventSubListener.onChannelFollow(broadcasterId, broadcasterId, onFollow);
-            let raidListener =  this.eventSubListener.onChannelRaidTo(broadcasterId, ({raidingBroadcasterName, viewers}) => onRaid(twitchChannel, raidingBroadcasterName, viewers));
+            let raidListener =  this.eventSubListener.onChannelRaidTo(broadcasterId, ({raidingBroadcasterName, viewers}) => onRaid({userName: raidingBroadcasterName, viewers}));
             let redemptionListener =  this.eventSubListener.onChannelRedemptionAdd(broadcasterId, onRedemption);
             let subListener =  this.eventSubListener.onChannelSubscription(broadcasterId, onSubscription);
             let cheerListener =  this.eventSubListener.onChannelCheer(broadcasterId, onBits);
